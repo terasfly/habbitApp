@@ -1,33 +1,71 @@
-let streaks = JSON.parse(localStorage.getItem('my-streaks')) || [];
+const STORAGE_KEY = 'myStreaksHabits';
+
+let streaks = [];
 let activeId = null;
 let streakToDeleteId = null;
 let calDate = new Date();
 let selColor = '#63b3ed';
-let selEmoji = '📚';
+let selEmoji = '🌅';
 
-const icons = [
-    '📚', '🧘‍♀️', '🏋️‍♂️', '🏃‍♂️', '💧', '🍎', '🛌', '🏋️‍♂️', '🚶‍♀️',
-    '✍️', '🎸', '💻', '🧹', '🚴‍♂️', '🌿', '🎨', '🧠', '🧩', '💡', '🤔',
-    '🎯', '📱', '🧘‍♂️', '🏊‍♂️', '🚲', '🛒'
+const habitTemplates = [
+    { emoji: '🌅', name: 'Wake up early' },
+    { emoji: '💧', name: 'Drink water' },
+    { emoji: '🛌', name: 'Make bed' },
+    { emoji: '🙆‍♀️', name: 'Morning stretch' },
+    { emoji: '📚', name: 'Read books' },
+    { emoji: '🧘‍♂️', name: 'Meditate daily' },
+    { emoji: '🌳', name: 'Walk outside' },
+    { emoji: '🏋️‍♂️', name: 'Exercise daily' },
+    { emoji: '✍️', name: 'Journal thoughts' },
+    { emoji: '🙏', name: 'Practice gratitude' },
+    { emoji: '🥗', name: 'Eat slowly' },
+    { emoji: '🗓️', name: 'Plan tomorrow' },
+    { emoji: '🍬', name: 'Limit sugar' },
+    { emoji: '🥤', name: 'Avoid soda' },
+    { emoji: '🌬️', name: 'Breathe deeply' },
+    { emoji: '💻', name: 'Learn coding' },
+    { emoji: '🗣️', name: 'Practice English' },
+    { emoji: '🧹', name: 'Tidy room' },
+    { emoji: '💰', name: 'Track spending' },
+    { emoji: '😴', name: 'Sleep earlier' },
+    { emoji: '📵', name: 'No scrolling' },
+    { emoji: '🍳', name: 'Cook dinner' },
+    { emoji: '🧘', name: 'Check posture' },
+    { emoji: '🧼', name: 'Wash dishes' },
+    { emoji: '🦷', name: 'Floss teeth' },
+    { emoji: '🎯', name: 'Review goals' },
+    { emoji: '☀️', name: 'Get sunlight' },
+    { emoji: '🤝', name: 'Help someone' },
+    { emoji: '🌙', name: 'Evening reflection' },
+    { emoji: '💊', name: 'Take vitamins' },
+    { emoji: '🚿', name: 'Cold shower' },
+    { emoji: '🖥️', name: 'Clean desk' },
+    { emoji: '📖', name: 'Study consistently' },
+    { emoji: '🏦', name: 'Save money' },
+    { emoji: '🎧', name: 'Listen podcasts' },
+    { emoji: '💡', name: 'Write ideas' },
+    { emoji: '🤲', name: 'Daily prayer' },
+    { emoji: '🥣', name: 'Healthy breakfast' },
+    { emoji: '🥩', name: 'Protein intake' },
+    { emoji: '👁️', name: 'Screen break' },
+    { emoji: '📞', name: 'Call family' },
+    { emoji: '⏳', name: 'Practice patience' },
+    { emoji: '📦', name: 'Declutter space' },
+    { emoji: '📑', name: 'Learn vocabulary' },
+    { emoji: '🤝', name: 'Keep promises' },
+    { emoji: '🌙', name: 'Early bedtime' },
+    { emoji: '🚫', name: 'No junkfood' },
+    { emoji: '😊', name: 'Smile often' }
 ];
 
-const generateColorPalette = () => {
-    const palette = [];
-
-    for (let i = 0; i < 40; i++) {
-        const hue = (i * 360) / 40;
-        palette.push(`hsl(${hue}, 75%, 60%)`);
-    }
-
-    for (let i = 0; i < 10; i++) {
-        const hue = (i * 360) / 10;
-        palette.push(`hsl(${hue}, 80%, 85%)`);
-    }
-
-    return palette;
-};
-
-const customPalette = generateColorPalette();
+const colorOptions = [
+    '#63b3ed', '#f687b3', '#48bb78', '#f6ad55', '#a78bfa',
+    '#f56565', '#38b2ac', '#ed8936', '#4299e1', '#9f7aea',
+    '#ecc94b', '#4fd1c5', '#fc8181', '#68d391', '#90cdf4',
+    '#fbb6ce', '#c084fc', '#fbd38d', '#81e6d9', '#b794f4',
+    '#2dd4bf', '#22c55e', '#fb7185', '#60a5fa', '#f97316',
+    '#e879f9', '#facc15', '#34d399', '#818cf8', '#fb923c'
+];
 
 const sContainer = document.getElementById('streaks-container');
 const modal = document.getElementById('modal-overlay');
@@ -35,46 +73,72 @@ const calOverlay = document.getElementById('calendar-overlay');
 const deleteOverlay = document.getElementById('delete-confirm-overlay');
 const toast = document.getElementById('toast');
 const inputName = document.getElementById('new-streak-name');
+const iconContainer = document.getElementById('icon-selector');
 const colorPalette = document.getElementById('color-palette');
 const rainbowTrigger = document.getElementById('rainbow-trigger');
-
-function getContrastYIQ(hexOrHsl) {
-    return '#000000';
-}
-
-function saveToLocal() {
-    localStorage.setItem('my-streaks', JSON.stringify(streaks));
-    render();
-
-    if (activeId) {
-        updateYearlyProgress();
-    }
-}
+const confirmAddBtn = document.getElementById('confirm-add');
+const syncStatus = document.getElementById('sync-status');
+const loadingScreen = document.getElementById('loading-screen');
 
 function showToast(msg) {
     toast.innerText = msg;
     toast.style.opacity = '1';
-    setTimeout(() => {
+
+    clearTimeout(showToast.timeoutId);
+    showToast.timeoutId = setTimeout(() => {
         toast.style.opacity = '0';
     }, 2000);
 }
 
+function getDStr(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function createId() {
+    if (window.crypto && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return `habit-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function saveHabits() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(streaks));
+    syncStatus.innerText = 'Saved locally';
+}
+
+function loadHabits() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        streaks = raw ? JSON.parse(raw) : [];
+
+        if (!Array.isArray(streaks)) {
+            streaks = [];
+        }
+    } catch (error) {
+        streaks = [];
+        showToast('Storage error');
+    }
+}
+
 function calculateMonthlyRecord(history) {
-    if (!history || history.length === 0) return 0;
+    if (!history || !history.length) return 0;
 
     const now = new Date();
     const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const monthHistory = history.filter(date => date.startsWith(prefix)).sort();
 
-    if (monthHistory.length === 0) return 0;
+    const monthHistory = history
+        .filter(date => date.startsWith(prefix))
+        .sort();
+
+    if (!monthHistory.length) return 0;
 
     let maxStreak = 1;
     let currentStreak = 1;
 
     for (let i = 1; i < monthHistory.length; i++) {
         const prev = new Date(monthHistory[i - 1]);
-        const curr = new Date(monthHistory[i]);
-        const diff = Math.round((curr - prev) / (1000 * 60 * 60 * 24));
+        const current = new Date(monthHistory[i]);
+        const diff = Math.round((current - prev) / 86400000);
 
         if (diff === 1) {
             currentStreak++;
@@ -87,129 +151,58 @@ function calculateMonthlyRecord(history) {
     return maxStreak;
 }
 
-function getYearlyStats(history) {
-    const currentYear = new Date().getFullYear();
-    const daysInYear =
-        (currentYear % 4 === 0 && (currentYear % 100 !== 0 || currentYear % 400 === 0))
-            ? 366
-            : 365;
-
-    const filledThisYear = history.filter(date => date.startsWith(currentYear.toString())).length;
-    const percent = ((filledThisYear / daysInYear) * 100).toFixed(1);
-
-    return { filledThisYear, percent, daysInYear };
-}
-
 function getMonthProgress(history) {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
-    const filledThisMonth = (history || []).filter(date => date.startsWith(prefix)).length;
-
-    const progressPercent = (filledThisMonth / daysInMonth) * 100;
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const filledCount = (history || []).filter(date => date.startsWith(prefix)).length;
 
     return {
-        percent: progressPercent,
-        count: filledThisMonth,
+        percent: (filledCount / daysInMonth) * 100,
+        count: filledCount,
         daysInMonth,
         abbr: now.toLocaleString('en-US', { month: 'short' }).toUpperCase(),
-        bestMonthlyStreak: calculateMonthlyRecord(history)
+        best: calculateMonthlyRecord(history)
     };
 }
-
-function updateYearlyProgress() {
-    const streak = streaks.find(s => s.id === activeId);
-    if (!streak) return;
-
-    const stats = getYearlyStats(streak.history || []);
-    document.getElementById('yearly-percent').innerText = `${stats.percent}%`;
-    document.getElementById('yearly-progress-fill').style.width = `${stats.percent}%`;
-    document.getElementById('yearly-count').innerText = `${stats.filledThisYear} of ${stats.daysInYear} days`;
-}
-
-const iContainer = document.getElementById('icon-selector');
-
-icons.forEach(i => {
-    const d = document.createElement('div');
-    d.className = 'icon-option' + (i === selEmoji ? ' selected' : '');
-    d.innerText = i;
-    d.onclick = () => {
-        document.querySelectorAll('.icon-option').forEach(el => el.classList.remove('selected'));
-        d.classList.add('selected');
-        selEmoji = i;
-    };
-    iContainer.appendChild(d);
-});
-
-customPalette.forEach((c) => {
-    const d = document.createElement('div');
-    d.className = 'color-option';
-    d.style.backgroundColor = c;
-
-    d.onclick = (e) => {
-        e.stopPropagation();
-
-        document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
-        d.classList.add('selected');
-        selColor = c;
-
-        inputName.style.borderColor = c;
-        document.getElementById('confirm-add').style.backgroundColor = c;
-
-        colorPalette.classList.remove('show');
-    };
-
-    colorPalette.appendChild(d);
-});
-
-rainbowTrigger.onclick = (e) => {
-    e.stopPropagation();
-    colorPalette.classList.toggle('show');
-};
-
-const getDStr = (d) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function render() {
     sContainer.innerHTML = '';
     const todayStr = getDStr(new Date());
 
-    streaks.forEach(s => {
-        const isDone = s.history?.includes(todayStr);
-        const color = s.color || '#63b3ed';
-        const monthStats = getMonthProgress(s.history || []);
-        const rotation = (monthStats.percent / 100) * 360;
+    streaks.forEach(streak => {
+        const isDone = (streak.history || []).includes(todayStr);
+        const color = streak.color || '#63b3ed';
+        const stats = getMonthProgress(streak.history || []);
+        const rotation = (stats.percent / 100) * 360;
 
         const card = document.createElement('div');
         card.className = 'streak-card';
 
         card.innerHTML = `
-            <button class="delete-btn" onclick="window.askDelete(event, '${s.id}')">✕</button>
+            <button class="delete-btn" data-action="delete" data-id="${streak.id}">✕</button>
             <div class="ring-wrapper">
                 <div class="ring-track"></div>
-                <div class="ring-progress" style="background: conic-gradient(${color} ${monthStats.percent}%, transparent 0)"></div>
+                <div class="ring-progress" style="background: conic-gradient(${color} ${stats.percent}%, transparent 0)"></div>
                 <div class="ring-dot-container" style="transform: rotate(${rotation}deg)">
-                    <div class="ring-dot" style="box-shadow: 0 0 10px #fff, 0 0 15px ${color};"></div>
+                    <div class="ring-dot" style="box-shadow: 0 0 5px #fff, 0 0 10px ${color};"></div>
                 </div>
-                <div class="bubble" onclick="window.openStreak('${s.id}')">
-                    <div class="icon-badge" style="box-shadow: 0 8px 24px ${color}44, inset 0 4px 4px rgba(255,255,255,0.2);">
-                        <div class="streak-emoji">${s.emoji || '📚'}</div>
+                <div class="bubble" data-action="open" data-id="${streak.id}">
+                    <div class="icon-badge" style="box-shadow: 0 4px 10px ${color}33;">
+                        <div class="streak-emoji">${streak.emoji || '📚'}</div>
                     </div>
                     <div class="counter-row">
                         <div class="streak-count" style="color: ${isDone ? color : 'var(--sky-blue)'}">
-                            ${Math.round(monthStats.percent)}<span class="percent-sign">%</span>
+                            ${Math.round(stats.percent)}<span class="percent-sign">%</span><span class="month-abbr">${stats.abbr}</span>
                         </div>
-                        <div class="month-abbr">${monthStats.abbr}</div>
                     </div>
-                    <div class="fraction-text">${monthStats.count} / ${monthStats.daysInMonth}</div>
+                    <div class="fraction-text">${stats.count} / ${stats.daysInMonth}</div>
                     <div class="separator"></div>
-                    <div class="best-label">🔥 ${monthStats.bestMonthlyStreak} BEST</div>
+                    <div class="best-label">🔥 ${stats.best}</div>
                 </div>
             </div>
-            <div class="streak-identity" style="border-color: ${color}" onclick="window.openStreak('${s.id}')">
-                <div class="streak-name">${s.name}</div>
+            <div class="streak-identity" style="border-color: ${color}" data-action="open" data-id="${streak.id}">
+                <div class="streak-name">${streak.name}</div>
             </div>
         `;
 
@@ -220,7 +213,7 @@ function render() {
     addCard.className = 'streak-card';
     addCard.innerHTML = `
         <div class="ring-wrapper">
-            <div class="bubble add-bubble" onclick="window.openAddModal()">+</div>
+            <div class="bubble add-bubble" data-action="add">+</div>
         </div>
         <div class="streak-identity" style="opacity:0.5; border-color: transparent">
             <div class="streak-name">New</div>
@@ -228,36 +221,42 @@ function render() {
     `;
     sContainer.appendChild(addCard);
 
-    const completed = streaks.filter(s => s.history?.includes(todayStr)).length;
+    const completed = streaks.filter(streak => (streak.history || []).includes(todayStr)).length;
     document.getElementById('progress-text').innerText = `${completed}/${streaks.length}`;
     document.getElementById('progress-fill').style.width = streaks.length
-        ? (completed / streaks.length * 100) + '%'
+        ? `${(completed / streaks.length) * 100}%`
         : '0%';
 }
 
-window.openStreak = (id) => {
+function openStreak(id) {
     activeId = id;
     calDate = new Date();
     renderCalendar();
     updateYearlyProgress();
     calOverlay.style.display = 'flex';
-};
+}
 
-window.openAddModal = () => {
-    inputName.style.borderColor = '';
-    document.getElementById('confirm-add').style.backgroundColor = '';
-    colorPalette.classList.remove('show');
+function openAddModal() {
     modal.style.display = 'flex';
-};
+    inputName.value = habitTemplates[0].name;
+    selEmoji = habitTemplates[0].emoji;
+    selColor = '#63b3ed';
 
-window.askDelete = (e, id) => {
-    e.stopPropagation();
+    inputName.style.borderColor = selColor;
+    confirmAddBtn.style.backgroundColor = selColor;
+
+    updateIconSelection();
+    updateColorSelection();
+    iconContainer.scrollTop = 0;
+}
+
+function askDelete(id) {
     streakToDeleteId = id;
     deleteOverlay.style.display = 'flex';
-};
+}
 
 function renderCalendar() {
-    const streak = streaks.find(s => s.id === activeId);
+    const streak = streaks.find(item => item.id === activeId);
     if (!streak) return;
 
     document.getElementById('cal-title').innerText = streak.name;
@@ -273,82 +272,167 @@ function renderCalendar() {
     const month = calDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
-
-    const todayStr = getDStr(new Date());
-    const streakColor = streak.color || selColor;
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
 
     for (let i = 0; i < firstDay; i++) {
-        grid.appendChild(document.createElement('div')).className = 'calendar-day empty';
+        const empty = document.createElement('div');
+        empty.className = 'calendar-day empty';
+        grid.appendChild(empty);
     }
 
-    for (let i = 1; i <= daysInMonth; i++) {
-        const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-        const d = document.createElement('div');
-        const isCompleted = streak.history?.includes(dStr);
-        const isToday = dStr === todayStr;
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayEl = document.createElement('div');
+        const dayDate = new Date(year, month, day);
+        const isCompleted = (streak.history || []).includes(dStr);
+        const isToday = dStr === getDStr(new Date());
 
-        d.className = 'calendar-day';
+        dayEl.className = 'calendar-day';
+        dayEl.innerText = day;
 
-        if (isToday) d.classList.add('today');
-        if (isCompleted) d.classList.add('completed');
+        if (isToday) dayEl.classList.add('today');
 
-        if (isToday) {
-            if (isCompleted) {
-                d.style.background = streakColor;
-                d.style.color = getContrastYIQ(streakColor);
-            } else {
-                d.style.background = '#000';
-                d.style.color = '#fff';
-            }
-        } else if (isCompleted) {
-            d.style.background = streakColor;
-            d.style.color = getContrastYIQ(streakColor);
+        if (isCompleted) {
+            dayEl.style.background = streak.color || selColor;
+            dayEl.style.color = '#fff';
         }
 
-        d.innerText = i;
-
-        const dayDate = new Date(year, month, i);
-
-        if (dayDate > new Date()) {
-            d.classList.add('future');
+        if (dayDate <= today) {
+            dayEl.addEventListener('click', () => toggleDay(activeId, dStr));
         } else {
-            d.onclick = () => {
-                const sIndex = streaks.findIndex(st => st.id === activeId);
-                let h = [...(streaks[sIndex].history || [])];
-
-                if (h.includes(dStr)) {
-                    h = h.filter(x => x !== dStr);
-                } else {
-                    h.push(dStr);
-                    if (dStr === getDStr(new Date())) triggerConfetti();
-                }
-
-                streaks[sIndex].history = h;
-                saveToLocal();
-                renderCalendar();
-            };
+            dayEl.classList.add('future');
         }
 
-        grid.appendChild(d);
+        grid.appendChild(dayEl);
     }
+}
+
+function toggleDay(id, dStr) {
+    const streak = streaks.find(item => item.id === id);
+    if (!streak) return;
+
+    const history = [...(streak.history || [])];
+    const existingIndex = history.indexOf(dStr);
+
+    if (existingIndex >= 0) {
+        history.splice(existingIndex, 1);
+    } else {
+        history.push(dStr);
+        if (dStr === getDStr(new Date())) {
+            triggerConfetti();
+        }
+    }
+
+    history.sort();
+    streak.history = history;
+
+    saveHabits();
+    render();
+    renderCalendar();
+    updateYearlyProgress();
+}
+
+function updateYearlyProgress() {
+    const streak = streaks.find(item => item.id === activeId);
+    if (!streak) return;
+
+    const currentYear = new Date().getFullYear();
+    const daysInYear =
+        (currentYear % 4 === 0 && (currentYear % 100 !== 0 || currentYear % 400 === 0))
+            ? 366
+            : 365;
+
+    const count = (streak.history || []).filter(date => date.startsWith(String(currentYear))).length;
+    const percent = ((count / daysInYear) * 100).toFixed(1);
+
+    document.getElementById('yearly-percent').innerText = `${percent}%`;
+    document.getElementById('yearly-progress-fill').style.width = `${percent}%`;
+    document.getElementById('yearly-count').innerText = `${count} of ${daysInYear} days`;
 }
 
 function triggerConfetti() {
-    confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
+    if (typeof confetti === 'function') {
+        confetti({
+            particleCount: 100,
+            spread: 60,
+            origin: { y: 0.7 }
+        });
+    }
+}
+
+function updateIconSelection() {
+    document.querySelectorAll('.icon-option').forEach(el => {
+        el.classList.toggle('selected', el.innerText === selEmoji);
     });
 }
 
-document.getElementById('confirm-add').onclick = () => {
+function updateColorSelection() {
+    document.querySelectorAll('.color-option').forEach(el => {
+        el.classList.toggle('selected', el.dataset.color === selColor);
+    });
+}
+
+function createIcons() {
+    iconContainer.innerHTML = '';
+
+    habitTemplates.forEach(template => {
+        const item = document.createElement('div');
+        item.className = `icon-option${template.emoji === selEmoji ? ' selected' : ''}`;
+        item.innerText = template.emoji;
+
+        item.addEventListener('click', () => {
+            selEmoji = template.emoji;
+
+            const currentName = inputName.value.trim();
+            const isTemplateName = habitTemplates.some(habit => habit.name.toLowerCase() === currentName.toLowerCase());
+
+            if (currentName === '' || isTemplateName) {
+                inputName.value = template.name;
+            }
+
+            updateIconSelection();
+        });
+
+        iconContainer.appendChild(item);
+    });
+}
+
+function createColors() {
+    colorPalette.innerHTML = '';
+
+    colorOptions.forEach(color => {
+        const item = document.createElement('div');
+        item.className = 'color-option';
+        item.dataset.color = color;
+        item.style.backgroundColor = color;
+
+        item.addEventListener('click', event => {
+            event.stopPropagation();
+            selColor = color;
+            inputName.style.borderColor = color;
+            confirmAddBtn.style.backgroundColor = color;
+            updateColorSelection();
+            colorPalette.classList.remove('show');
+        });
+
+        colorPalette.appendChild(item);
+    });
+
+    updateColorSelection();
+}
+
+function addHabit() {
     const name = inputName.value.trim();
     if (!name) return;
 
-    modal.style.display = 'none';
+    if (streaks.some(streak => streak.name.toLowerCase() === name.toLowerCase())) {
+        showToast('Already exists!');
+        return;
+    }
 
     streaks.push({
-        id: crypto.randomUUID(),
+        id: createId(),
         name: name.charAt(0).toUpperCase() + name.slice(1),
         history: [],
         color: selColor,
@@ -356,48 +440,93 @@ document.getElementById('confirm-add').onclick = () => {
         createdAt: Date.now()
     });
 
-    saveToLocal();
-    showToast('Created! ✨');
-    inputName.value = '';
-};
-
-document.getElementById('close-modal').onclick = () => {
-    colorPalette.classList.remove('show');
+    saveHabits();
+    render();
     modal.style.display = 'none';
-};
+    inputName.value = '';
+    showToast('Saved! ✨');
+}
 
-document.getElementById('close-cal-modal').onclick = () => {
-    calOverlay.style.display = 'none';
-    activeId = null;
-};
+function deleteHabit() {
+    if (!streakToDeleteId) return;
 
-document.getElementById('prev-month').onclick = () => {
-    calDate.setMonth(calDate.getMonth() - 1);
-    renderCalendar();
-};
+    streaks = streaks.filter(streak => streak.id !== streakToDeleteId);
 
-document.getElementById('next-month').onclick = () => {
-    calDate.setMonth(calDate.getMonth() + 1);
-    renderCalendar();
-};
+    if (activeId === streakToDeleteId) {
+        activeId = null;
+        calOverlay.style.display = 'none';
+    }
 
-document.getElementById('cancel-delete').onclick = () => {
+    streakToDeleteId = null;
+    saveHabits();
+    render();
     deleteOverlay.style.display = 'none';
-};
+    showToast('Deleted');
+}
 
-document.getElementById('confirm-delete').onclick = () => {
-    if (streakToDeleteId) {
-        streaks = streaks.filter(s => s.id !== streakToDeleteId);
-        saveToLocal();
+function bindEvents() {
+    sContainer.addEventListener('click', event => {
+        const target = event.target.closest('[data-action]');
+        if (!target) return;
+
+        const action = target.dataset.action;
+        const id = target.dataset.id;
+
+        if (action === 'open') openStreak(id);
+        if (action === 'delete') askDelete(id);
+        if (action === 'add') openAddModal();
+    });
+
+    rainbowTrigger.addEventListener('click', event => {
+        event.stopPropagation();
+        colorPalette.classList.toggle('show');
+    });
+
+    confirmAddBtn.addEventListener('click', addHabit);
+
+    document.getElementById('close-modal').addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    document.getElementById('close-cal-modal').addEventListener('click', () => {
+        calOverlay.style.display = 'none';
+    });
+
+    document.getElementById('cancel-delete').addEventListener('click', () => {
         deleteOverlay.style.display = 'none';
-        showToast('Deleted!');
-    }
-};
+    });
 
-document.addEventListener('click', (e) => {
-    if (!colorPalette.contains(e.target) && e.target !== rainbowTrigger) {
-        colorPalette.classList.remove('show');
-    }
-});
+    document.getElementById('confirm-delete').addEventListener('click', deleteHabit);
 
-render();
+    document.getElementById('prev-month').addEventListener('click', () => {
+        calDate.setMonth(calDate.getMonth() - 1);
+        renderCalendar();
+    });
+
+    document.getElementById('next-month').addEventListener('click', () => {
+        calDate.setMonth(calDate.getMonth() + 1);
+        renderCalendar();
+    });
+
+    window.addEventListener('click', event => {
+        if (event.target === modal) modal.style.display = 'none';
+        if (event.target === calOverlay) calOverlay.style.display = 'none';
+        if (event.target === deleteOverlay) deleteOverlay.style.display = 'none';
+
+        if (!colorPalette.contains(event.target) && !rainbowTrigger.contains(event.target)) {
+            colorPalette.classList.remove('show');
+        }
+    });
+}
+
+function init() {
+    syncStatus.innerText = 'Local Storage';
+    createIcons();
+    createColors();
+    bindEvents();
+    loadHabits();
+    render();
+    loadingScreen.style.display = 'none';
+}
+
+init();
