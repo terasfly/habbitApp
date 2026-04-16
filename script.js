@@ -4,7 +4,8 @@ import {
     addDoc,
     deleteDoc,
     doc,
-    getDocs
+    getDocs,
+    updateDoc
 } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-firestore.js";
 
 console.log("Firebase connected:", app);
@@ -113,7 +114,7 @@ function createId() {
     return `habit-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function saveHabits(statusText = "Saved locally") {
+function saveHabitsToLocal(statusText = "Saved locally") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(streaks));
     syncStatus.innerText = statusText;
 }
@@ -136,7 +137,7 @@ async function loadHabitsFromFirebase() {
     try {
         const querySnapshot = await getDocs(collection(db, "habits"));
 
-        streaks = querySnapshot.docs.map(docSnap => {
+        streaks = querySnapshot.docs.map((docSnap) => {
             const data = docSnap.data();
 
             return {
@@ -145,14 +146,14 @@ async function loadHabitsFromFirebase() {
             };
         });
 
-        saveHabits("Loaded from Firebase");
+        saveHabitsToLocal("Loaded from Firebase");
         render();
         console.log("Loaded habits from Firebase:", streaks);
     } catch (error) {
         console.error("Firebase load error:", error);
         loadHabitsFromLocal();
         render();
-        saveHabits("Loaded local backup");
+        saveHabitsToLocal("Loaded local backup");
         showToast("Loaded local backup");
     }
 }
@@ -162,8 +163,7 @@ function calculateMonthlyRecord(history) {
 
     const now = new Date();
     const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-    const monthHistory = history.filter(date => date.startsWith(prefix)).sort();
+    const monthHistory = history.filter((date) => date.startsWith(prefix)).sort();
 
     if (!monthHistory.length) return 0;
 
@@ -190,7 +190,7 @@ function getMonthProgress(history) {
     const now = new Date();
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const filledCount = (history || []).filter(date => date.startsWith(prefix)).length;
+    const filledCount = (history || []).filter((date) => date.startsWith(prefix)).length;
 
     return {
         percent: (filledCount / daysInMonth) * 100,
@@ -205,7 +205,7 @@ function render() {
     sContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
 
-    streaks.forEach(streak => {
+    streaks.forEach((streak) => {
         const isDone = (streak.history || []).includes(todayStr);
         const color = streak.color || "#63b3ed";
         const stats = getMonthProgress(streak.history || []);
@@ -256,7 +256,7 @@ function render() {
     `;
     sContainer.appendChild(addCard);
 
-    const completed = streaks.filter(streak => (streak.history || []).includes(todayStr)).length;
+    const completed = streaks.filter((streak) => (streak.history || []).includes(todayStr)).length;
     document.getElementById("progress-text").innerText = `${completed}/${streaks.length}`;
     document.getElementById("progress-fill").style.width = streaks.length
         ? `${(completed / streaks.length) * 100}%`
@@ -291,7 +291,7 @@ function askDelete(id) {
 }
 
 function renderCalendar() {
-    const streak = streaks.find(item => item.id === activeId);
+    const streak = streaks.find((item) => item.id === activeId);
     if (!streak) return;
 
     document.getElementById("cal-title").innerText = streak.name;
@@ -334,7 +334,9 @@ function renderCalendar() {
         }
 
         if (dayDate <= today) {
-            dayEl.addEventListener("click", () => toggleDay(activeId, dStr));
+            dayEl.addEventListener("click", () => {
+                toggleDay(activeId, dStr);
+            });
         } else {
             dayEl.classList.add("future");
         }
@@ -343,8 +345,8 @@ function renderCalendar() {
     }
 }
 
-function toggleDay(id, dStr) {
-    const streak = streaks.find(item => item.id === id);
+async function toggleDay(id, dStr) {
+    const streak = streaks.find((item) => item.id === id);
     if (!streak) return;
 
     const history = [...(streak.history || [])];
@@ -362,14 +364,28 @@ function toggleDay(id, dStr) {
     history.sort();
     streak.history = history;
 
-    saveHabits("Saved locally");
+    try {
+        if (streak.firebaseDocId) {
+            await updateDoc(doc(db, "habits", streak.firebaseDocId), {
+                history: streak.history
+            });
+            saveHabitsToLocal("Updated in Firebase");
+        } else {
+            saveHabitsToLocal("Saved locally");
+        }
+    } catch (error) {
+        console.error("Firebase update error:", error);
+        saveHabitsToLocal("Saved locally only");
+        showToast("Firebase update failed");
+    }
+
     render();
     renderCalendar();
     updateYearlyProgress();
 }
 
 function updateYearlyProgress() {
-    const streak = streaks.find(item => item.id === activeId);
+    const streak = streaks.find((item) => item.id === activeId);
     if (!streak) return;
 
     const currentYear = new Date().getFullYear();
@@ -378,7 +394,7 @@ function updateYearlyProgress() {
             ? 366
             : 365;
 
-    const count = (streak.history || []).filter(date => date.startsWith(String(currentYear))).length;
+    const count = (streak.history || []).filter((date) => date.startsWith(String(currentYear))).length;
     const percent = ((count / daysInYear) * 100).toFixed(1);
 
     document.getElementById("yearly-percent").innerText = `${percent}%`;
@@ -397,13 +413,13 @@ function triggerConfetti() {
 }
 
 function updateIconSelection() {
-    document.querySelectorAll(".icon-option").forEach(el => {
+    document.querySelectorAll(".icon-option").forEach((el) => {
         el.classList.toggle("selected", el.innerText === selEmoji);
     });
 }
 
 function updateColorSelection() {
-    document.querySelectorAll(".color-option").forEach(el => {
+    document.querySelectorAll(".color-option").forEach((el) => {
         el.classList.toggle("selected", el.dataset.color === selColor);
     });
 }
@@ -411,7 +427,7 @@ function updateColorSelection() {
 function createIcons() {
     iconContainer.innerHTML = "";
 
-    habitTemplates.forEach(template => {
+    habitTemplates.forEach((template) => {
         const item = document.createElement("div");
         item.className = `icon-option${template.emoji === selEmoji ? " selected" : ""}`;
         item.innerText = template.emoji;
@@ -420,7 +436,9 @@ function createIcons() {
             selEmoji = template.emoji;
 
             const currentName = inputName.value.trim();
-            const isTemplateName = habitTemplates.some(habit => habit.name.toLowerCase() === currentName.toLowerCase());
+            const isTemplateName = habitTemplates.some(
+                (habit) => habit.name.toLowerCase() === currentName.toLowerCase()
+            );
 
             if (currentName === "" || isTemplateName) {
                 inputName.value = template.name;
@@ -436,13 +454,13 @@ function createIcons() {
 function createColors() {
     colorPalette.innerHTML = "";
 
-    colorOptions.forEach(color => {
+    colorOptions.forEach((color) => {
         const item = document.createElement("div");
         item.className = "color-option";
         item.dataset.color = color;
         item.style.backgroundColor = color;
 
-        item.addEventListener("click", event => {
+        item.addEventListener("click", (event) => {
             event.stopPropagation();
             selColor = color;
             inputName.style.borderColor = color;
@@ -461,7 +479,7 @@ async function addHabit() {
     const name = inputName.value.trim();
     if (!name) return;
 
-    if (streaks.some(streak => streak.name.toLowerCase() === name.toLowerCase())) {
+    if (streaks.some((streak) => streak.name.toLowerCase() === name.toLowerCase())) {
         showToast("Already exists!");
         return;
     }
@@ -484,7 +502,7 @@ async function addHabit() {
         };
 
         streaks.push(habitWithFirebaseId);
-        saveHabits("Saved to Firebase");
+        saveHabitsToLocal("Saved to Firebase");
         render();
 
         modal.style.display = "none";
@@ -496,7 +514,7 @@ async function addHabit() {
         console.error("Firestore save error full:", error);
 
         streaks.push(newHabit);
-        saveHabits("Saved locally only");
+        saveHabitsToLocal("Saved locally only");
         render();
 
         modal.style.display = "none";
@@ -510,7 +528,7 @@ async function addHabit() {
 async function deleteHabit() {
     if (!streakToDeleteId) return;
 
-    const habitToDelete = streaks.find(streak => streak.id === streakToDeleteId);
+    const habitToDelete = streaks.find((streak) => streak.id === streakToDeleteId);
 
     try {
         if (habitToDelete?.firebaseDocId) {
@@ -522,7 +540,7 @@ async function deleteHabit() {
         alert("Firebase delete error: " + error.message);
     }
 
-    streaks = streaks.filter(streak => streak.id !== streakToDeleteId);
+    streaks = streaks.filter((streak) => streak.id !== streakToDeleteId);
 
     if (activeId === streakToDeleteId) {
         activeId = null;
@@ -530,14 +548,14 @@ async function deleteHabit() {
     }
 
     streakToDeleteId = null;
-    saveHabits("Saved locally");
+    saveHabitsToLocal("Deleted");
     render();
     deleteOverlay.style.display = "none";
     showToast("Deleted");
 }
 
 function bindEvents() {
-    sContainer.addEventListener("click", event => {
+    sContainer.addEventListener("click", (event) => {
         const target = event.target.closest("[data-action]");
         if (!target) return;
 
@@ -549,7 +567,7 @@ function bindEvents() {
         if (action === "add") openAddModal();
     });
 
-    rainbowTrigger.addEventListener("click", event => {
+    rainbowTrigger.addEventListener("click", (event) => {
         event.stopPropagation();
         colorPalette.classList.toggle("show");
     });
@@ -580,7 +598,7 @@ function bindEvents() {
         renderCalendar();
     });
 
-    window.addEventListener("click", event => {
+    window.addEventListener("click", (event) => {
         if (event.target === modal) modal.style.display = "none";
         if (event.target === calOverlay) calOverlay.style.display = "none";
         if (event.target === deleteOverlay) deleteOverlay.style.display = "none";
