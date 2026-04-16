@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>My Streaks</title>
 
-    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Streaks">
     <meta name="theme-color" content="#0f172a">
@@ -17,19 +16,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- <script type="module" src="script.js"></script> -->
-    <script type="module" src="script.js?v=2"></script>
+    <script type="module" src="script.js?v=3"></script>
 </head>
 <body>
 
     <div id="loading-screen" class="loading-screen">
         <div class="spinner"></div>
-        <div style="font-weight: 800; color: var(--sky-blue); font-size: 0.85rem;">Loading...</div>
+        <div class="loading-label">Loading...</div>
     </div>
 
     <div class="container">
         <header><h1>My Streaks</h1></header>
-        <div class="sync-status" id="sync-status">Local Storage</div>
+        <div class="sync-status" id="sync-status">Connecting...</div>
 
         <div class="progress-container">
             <div class="progress-text">
@@ -47,7 +45,7 @@
     <!-- New Habit Modal -->
     <div id="modal-overlay" class="overlay">
         <div class="modal">
-            <h2 style="margin-bottom: 12px; color: var(--sky-blue); font-size: 1.2rem;">New Habit</h2>
+            <h2 class="modal-title">New Habit</h2>
             <div class="icon-selector" id="icon-selector"></div>
             <input type="text" id="new-streak-name" placeholder="Habit Name" maxlength="20">
             <div class="color-picker-wrapper">
@@ -62,12 +60,14 @@
     <!-- Calendar Modal -->
     <div id="calendar-overlay" class="overlay">
         <div class="modal">
-            <h2 id="cal-title" style="margin-bottom: 8px; font-size: 1.1rem;">Habit</h2>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <button id="prev-month" style="background:none; border:none; color:var(--sky-blue); font-size:1.5rem;">←</button>
-                <span id="cal-month" style="font-weight:800; font-size: 0.9rem;"></span>
-                <button id="next-month" style="background:none; border:none; color:var(--sky-blue); font-size:1.5rem;">→</button>
+            <h2 id="cal-title" class="calendar-title">Habit</h2>
+
+            <div class="calendar-nav">
+                <button id="prev-month" class="calendar-arrow">←</button>
+                <span id="cal-month" class="calendar-month"></span>
+                <button id="next-month" class="calendar-arrow">→</button>
             </div>
+
             <div class="calendar-days" id="calendar-days"></div>
 
             <div class="yearly-stats-box">
@@ -81,18 +81,18 @@
                 <div class="yearly-count-text" id="yearly-count">0 of 365 days</div>
             </div>
 
-            <button class="modal-btn cancel-btn" style="margin-top: 15px;" id="close-cal-modal">Close</button>
+            <button class="modal-btn cancel-btn calendar-close-btn" id="close-cal-modal">Close</button>
         </div>
     </div>
 
     <!-- Delete Modal -->
     <div id="delete-confirm-overlay" class="overlay">
         <div class="modal">
-            <h2 style="color: var(--danger); margin-bottom: 8px; font-size: 1.2rem;">Delete?</h2>
-            <p style="margin-bottom: 15px; opacity: 0.8; font-size: 0.85rem;">All history will be lost.</p>
-            <div style="display: flex; gap: 8px;">
-                <button class="modal-btn cancel-btn" style="flex: 1;" id="cancel-delete">No</button>
-                <button class="modal-btn" style="flex: 1; background: var(--danger); color: white;" id="confirm-delete">Yes</button>
+            <h2 class="delete-title">Delete?</h2>
+            <p class="delete-text">All history will be lost.</p>
+            <div class="delete-actions">
+                <button class="modal-btn cancel-btn delete-half-btn" id="cancel-delete">No</button>
+                <button class="modal-btn delete-confirm-btn delete-half-btn" id="confirm-delete">Yes</button>
             </div>
         </div>
     </div>
