@@ -1,102 +1,657 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>My Streaks</title>
+import { app, db } from "./firebase.js";
+import {
+    collection,
+    addDoc,
+    deleteDoc,
+    doc,
+    getDocs,
+    updateDoc
+} from "https://www.gstatic.com/firebasejs/12.2.0/firebase-firestore.js";
 
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Streaks">
-    <meta name="theme-color" content="#0f172a">
+console.log("Firebase connected:", app);
+console.log("Firestore connected:", db);
 
-    <link rel="stylesheet" href="style.css">
+const STORAGE_KEY = "myStreaksHabits";
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+let streaks = [];
+let activeId = null;
+let streakToDeleteId = null;
+let calDate = new Date();
+let selColor = "#63b3ed";
+let selEmoji = "🌅";
 
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script type="module" src="script.js"></script>
-</head>
-<body>
+const habitTemplates = [
+    { emoji: "🌅", name: "Wake up early" },
+    { emoji: "💧", name: "Drink water" },
+    { emoji: "🛌", name: "Make bed" },
+    { emoji: "🙆‍♀️", name: "Morning stretch" },
+    { emoji: "📚", name: "Read books" },
+    { emoji: "🧘‍♂️", name: "Meditate daily" },
+    { emoji: "🌳", name: "Walk outside" },
+    { emoji: "🏋️‍♂️", name: "Exercise daily" },
+    { emoji: "✍️", name: "Journal thoughts" },
+    { emoji: "🙏", name: "Practice gratitude" },
+    { emoji: "🥗", name: "Eat slowly" },
+    { emoji: "🗓️", name: "Plan tomorrow" },
+    { emoji: "🍬", name: "Limit sugar" },
+    { emoji: "🥤", name: "Avoid soda" },
+    { emoji: "🌬️", name: "Breathe deeply" },
+    { emoji: "💻", name: "Learn coding" },
+    { emoji: "🗣️", name: "Practice English" },
+    { emoji: "🧹", name: "Tidy room" },
+    { emoji: "💰", name: "Track spending" },
+    { emoji: "😴", name: "Sleep earlier" },
+    { emoji: "📵", name: "No scrolling" },
+    { emoji: "🍳", name: "Cook dinner" },
+    { emoji: "🧘", name: "Check posture" },
+    { emoji: "🧼", name: "Wash dishes" },
+    { emoji: "🦷", name: "Floss teeth" },
+    { emoji: "🎯", name: "Review goals" },
+    { emoji: "☀️", name: "Get sunlight" },
+    { emoji: "🤝", name: "Help someone" },
+    { emoji: "🌙", name: "Evening reflection" },
+    { emoji: "💊", name: "Take vitamins" },
+    { emoji: "🚿", name: "Cold shower" },
+    { emoji: "🖥️", name: "Clean desk" },
+    { emoji: "📖", name: "Study consistently" },
+    { emoji: "🏦", name: "Save money" },
+    { emoji: "🎧", name: "Listen podcasts" },
+    { emoji: "💡", name: "Write ideas" },
+    { emoji: "🤲", name: "Daily prayer" },
+    { emoji: "🥣", name: "Healthy breakfast" },
+    { emoji: "🥩", name: "Protein intake" },
+    { emoji: "👁️", name: "Screen break" },
+    { emoji: "📞", name: "Call family" },
+    { emoji: "⏳", name: "Practice patience" },
+    { emoji: "📦", name: "Declutter space" },
+    { emoji: "📑", name: "Learn vocabulary" },
+    { emoji: "🤝", name: "Keep promises" },
+    { emoji: "🌙", name: "Early bedtime" },
+    { emoji: "🚫", name: "No junkfood" },
+    { emoji: "😊", name: "Smile often" }
+];
 
-    <div id="loading-screen" class="loading-screen">
-        <div class="spinner"></div>
-        <div style="font-weight: 800; color: var(--sky-blue); font-size: 0.85rem;">Loading...</div>
-    </div>
+const colorOptions = [
+    "#63b3ed", "#f687b3", "#48bb78", "#f6ad55", "#a78bfa",
+    "#f56565", "#38b2ac", "#ed8936", "#4299e1", "#9f7aea",
+    "#ecc94b", "#4fd1c5", "#fc8181", "#68d391", "#90cdf4",
+    "#fbb6ce", "#c084fc", "#fbd38d", "#81e6d9", "#b794f4",
+    "#2dd4bf", "#22c55e", "#fb7185", "#60a5fa", "#f97316",
+    "#e879f9", "#facc15", "#34d399", "#818cf8", "#fb923c"
+];
 
-    <div class="container">
-        <header><h1>My Streaks</h1></header>
-        <div class="sync-status" id="sync-status">Local Storage</div>
+const sContainer = document.getElementById("streaks-container");
+const modal = document.getElementById("modal-overlay");
+const calOverlay = document.getElementById("calendar-overlay");
+const deleteOverlay = document.getElementById("delete-confirm-overlay");
+const toast = document.getElementById("toast");
+const inputName = document.getElementById("new-streak-name");
+const iconContainer = document.getElementById("icon-selector");
+const colorPalette = document.getElementById("color-palette");
+const rainbowTrigger = document.getElementById("rainbow-trigger");
+const confirmAddBtn = document.getElementById("confirm-add");
+const syncStatus = document.getElementById("sync-status");
+const loadingScreen = document.getElementById("loading-screen");
 
-        <div class="progress-container">
-            <div class="progress-text">
-                <span>Daily Progress</span>
-                <span id="progress-text">0/0</span>
-            </div>
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" id="progress-fill"></div>
-            </div>
-        </div>
+function showToast(msg) {
+    toast.innerText = msg;
+    toast.style.opacity = "1";
 
-        <div class="streaks-grid" id="streaks-container"></div>
-    </div>
+    clearTimeout(showToast.timeoutId);
+    showToast.timeoutId = setTimeout(() => {
+        toast.style.opacity = "0";
+    }, 2000);
+}
 
-    <!-- New Habit Modal -->
-    <div id="modal-overlay" class="overlay">
-        <div class="modal">
-            <h2 style="margin-bottom: 12px; color: var(--sky-blue); font-size: 1.2rem;">New Habit</h2>
-            <div class="icon-selector" id="icon-selector"></div>
-            <input type="text" id="new-streak-name" placeholder="Habit Name" maxlength="20">
-            <div class="color-picker-wrapper">
-                <div class="rainbow-btn" id="rainbow-trigger"><span>🎨</span></div>
-                <div class="color-popover" id="color-palette"></div>
-            </div>
-            <button class="modal-btn save-btn" id="confirm-add">Create</button>
-            <button class="modal-btn cancel-btn" id="close-modal">Cancel</button>
-        </div>
-    </div>
+function getDStr(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
-    <!-- Calendar Modal -->
-    <div id="calendar-overlay" class="overlay">
-        <div class="modal">
-            <h2 id="cal-title" style="margin-bottom: 8px; font-size: 1.1rem;">Habit</h2>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <button id="prev-month" style="background:none; border:none; color:var(--sky-blue); font-size:1.5rem;">←</button>
-                <span id="cal-month" style="font-weight:800; font-size: 0.9rem;"></span>
-                <button id="next-month" style="background:none; border:none; color:var(--sky-blue); font-size:1.5rem;">→</button>
-            </div>
-            <div class="calendar-days" id="calendar-days"></div>
+function createId() {
+    if (window.crypto && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return `habit-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
-            <div class="yearly-stats-box">
-                <div class="yearly-stats-header">
-                    <span>Yearly Progress</span>
-                    <span id="yearly-percent">0%</span>
+function saveHabits(statusText = "Saved locally") {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(streaks));
+    syncStatus.innerText = statusText;
+}
+
+function loadHabitsFromLocal() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+
+        if (!Array.isArray(parsed)) {
+            streaks = [];
+            return;
+        }
+
+        streaks = parsed.map(item => normalizeHabit(item, item.firebaseDocId));
+    } catch (error) {
+        streaks = [];
+        showToast("Storage error");
+    }
+}
+
+function normalizeHistory(history) {
+    if (Array.isArray(history)) {
+        return history
+            .filter(item => typeof item === "string")
+            .sort();
+    }
+
+    if (history && Array.isArray(history.days)) {
+        return history.days
+            .filter(item => typeof item === "string")
+            .sort();
+    }
+
+    return [];
+}
+
+function normalizeHabit(data, firebaseDocId) {
+    return {
+        id: data.id || createId(),
+        name: data.name || "Unnamed habit",
+        history: normalizeHistory(data.history),
+        color: data.color || "#63b3ed",
+        emoji: data.emoji || "📚",
+        createdAt: typeof data.createdAt === "number" ? data.createdAt : Date.now(),
+        firebaseDocId
+    };
+}
+
+async function loadHabitsFromFirebase() {
+    try {
+        const querySnapshot = await getDocs(collection(db, "habits"));
+
+        streaks = querySnapshot.docs.map(docSnap => normalizeHabit(docSnap.data(), docSnap.id));
+
+        saveHabits("Loaded from Firebase");
+        render();
+        console.log("Loaded habits from Firebase:", streaks);
+    } catch (error) {
+        console.error("Firebase load error:", error);
+        loadHabitsFromLocal();
+        render();
+        saveHabits("Loaded local backup");
+        showToast("Loaded local backup");
+    }
+}
+
+async function syncHabitToFirebase(streak) {
+    const payload = {
+        id: streak.id,
+        name: streak.name,
+        history: normalizeHistory(streak.history),
+        color: streak.color || "#63b3ed",
+        emoji: streak.emoji || "📚",
+        createdAt: typeof streak.createdAt === "number" ? streak.createdAt : Date.now()
+    };
+
+    if (streak.firebaseDocId) {
+        await updateDoc(doc(db, "habits", streak.firebaseDocId), payload);
+        return streak.firebaseDocId;
+    }
+
+    const docRef = await addDoc(collection(db, "habits"), payload);
+    streak.firebaseDocId = docRef.id;
+    return docRef.id;
+}
+
+function calculateMonthlyRecord(history) {
+    if (!history || !history.length) return 0;
+
+    const now = new Date();
+    const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    const monthHistory = history.filter(date => date.startsWith(prefix)).sort();
+
+    if (!monthHistory.length) return 0;
+
+    let maxStreak = 1;
+    let currentStreak = 1;
+
+    for (let i = 1; i < monthHistory.length; i++) {
+        const prev = new Date(monthHistory[i - 1]);
+        const current = new Date(monthHistory[i]);
+        const diff = Math.round((current - prev) / 86400000);
+
+        if (diff === 1) {
+            currentStreak++;
+            if (currentStreak > maxStreak) maxStreak = currentStreak;
+        } else {
+            currentStreak = 1;
+        }
+    }
+
+    return maxStreak;
+}
+
+function getMonthProgress(history) {
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const filledCount = (history || []).filter(date => date.startsWith(prefix)).length;
+
+    return {
+        percent: (filledCount / daysInMonth) * 100,
+        count: filledCount,
+        daysInMonth,
+        abbr: now.toLocaleString("en-US", { month: "short" }).toUpperCase(),
+        best: calculateMonthlyRecord(history)
+    };
+}
+
+function render() {
+    sContainer.innerHTML = "";
+    const todayStr = getDStr(new Date());
+
+    streaks.forEach(streak => {
+        const isDone = (streak.history || []).includes(todayStr);
+        const color = streak.color || "#63b3ed";
+        const stats = getMonthProgress(streak.history || []);
+        const rotation = (stats.percent / 100) * 360;
+
+        const card = document.createElement("div");
+        card.className = "streak-card";
+
+        card.innerHTML = `
+            <button class="delete-btn" data-action="delete" data-id="${streak.id}">✕</button>
+            <div class="ring-wrapper">
+                <div class="ring-track"></div>
+                <div class="ring-progress" style="background: conic-gradient(${color} ${stats.percent}%, transparent 0)"></div>
+                <div class="ring-dot-container" style="transform: rotate(${rotation}deg)">
+                    <div class="ring-dot" style="box-shadow: 0 0 5px #fff, 0 0 10px ${color};"></div>
                 </div>
-                <div class="yearly-progress-bar-bg">
-                    <div class="yearly-progress-bar-fill" id="yearly-progress-fill"></div>
+                <div class="bubble" data-action="open" data-id="${streak.id}">
+                    <div class="icon-badge" style="box-shadow: 0 4px 10px ${color}33;">
+                        <div class="streak-emoji">${streak.emoji || "📚"}</div>
+                    </div>
+                    <div class="counter-row">
+                        <div class="streak-count" style="color: ${isDone ? color : "var(--sky-blue)"}">
+                            ${Math.round(stats.percent)}<span class="percent-sign">%</span><span class="month-abbr">${stats.abbr}</span>
+                        </div>
+                    </div>
+                    <div class="fraction-text">${stats.count} / ${stats.daysInMonth}</div>
+                    <div class="separator"></div>
+                    <div class="best-label">🔥 ${stats.best}</div>
                 </div>
-                <div class="yearly-count-text" id="yearly-count">0 of 365 days</div>
             </div>
-
-            <button class="modal-btn cancel-btn" style="margin-top: 15px;" id="close-cal-modal">Close</button>
-        </div>
-    </div>
-
-    <!-- Delete Modal -->
-    <div id="delete-confirm-overlay" class="overlay">
-        <div class="modal">
-            <h2 style="color: var(--danger); margin-bottom: 8px; font-size: 1.2rem;">Delete?</h2>
-            <p style="margin-bottom: 15px; opacity: 0.8; font-size: 0.85rem;">All history will be lost.</p>
-            <div style="display: flex; gap: 8px;">
-                <button class="modal-btn cancel-btn" style="flex: 1;" id="cancel-delete">No</button>
-                <button class="modal-btn" style="flex: 1; background: var(--danger); color: white;" id="confirm-delete">Yes</button>
+            <div class="streak-identity" style="border-color: ${color}" data-action="open" data-id="${streak.id}">
+                <div class="streak-name">${streak.name}</div>
             </div>
+        `;
+
+        sContainer.appendChild(card);
+    });
+
+    const addCard = document.createElement("div");
+    addCard.className = "streak-card";
+    addCard.innerHTML = `
+        <div class="ring-wrapper">
+            <div class="bubble add-bubble" data-action="add">+</div>
         </div>
-    </div>
+        <div class="streak-identity" style="opacity:0.5; border-color: transparent">
+            <div class="streak-name">New</div>
+        </div>
+    `;
+    sContainer.appendChild(addCard);
 
-    <div id="toast">Notification</div>
+    const completed = streaks.filter(streak => (streak.history || []).includes(todayStr)).length;
+    document.getElementById("progress-text").innerText = `${completed}/${streaks.length}`;
+    document.getElementById("progress-fill").style.width = streaks.length
+        ? `${(completed / streaks.length) * 100}%`
+        : "0%";
+}
 
-</body>
-</html>
+function openStreak(id) {
+    activeId = id;
+    calDate = new Date();
+    renderCalendar();
+    updateYearlyProgress();
+    calOverlay.style.display = "flex";
+}
+
+function openAddModal() {
+    modal.style.display = "flex";
+    inputName.value = habitTemplates[0].name;
+    selEmoji = habitTemplates[0].emoji;
+    selColor = "#63b3ed";
+
+    inputName.style.borderColor = selColor;
+    confirmAddBtn.style.backgroundColor = selColor;
+
+    updateIconSelection();
+    updateColorSelection();
+    iconContainer.scrollTop = 0;
+}
+
+function askDelete(id) {
+    streakToDeleteId = id;
+    deleteOverlay.style.display = "flex";
+}
+
+function renderCalendar() {
+    const streak = streaks.find(item => item.id === activeId);
+    if (!streak) return;
+
+    document.getElementById("cal-title").innerText = streak.name;
+    document.getElementById("cal-month").innerText = calDate.toLocaleString("en-US", {
+        month: "long",
+        year: "numeric"
+    });
+
+    const grid = document.getElementById("calendar-days");
+    grid.innerHTML = "";
+
+    const year = calDate.getFullYear();
+    const month = calDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement("div");
+        empty.className = "calendar-day empty";
+        grid.appendChild(empty);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const dayEl = document.createElement("div");
+        const dayDate = new Date(year, month, day);
+        const isCompleted = (streak.history || []).includes(dStr);
+        const isToday = dStr === getDStr(new Date());
+
+        dayEl.className = "calendar-day";
+        dayEl.innerText = day;
+
+        if (isToday) dayEl.classList.add("today");
+
+        if (isCompleted) {
+            dayEl.style.background = streak.color || selColor;
+            dayEl.style.color = "#fff";
+        }
+
+        if (dayDate <= today) {
+            dayEl.addEventListener("click", () => toggleDay(activeId, dStr));
+        } else {
+            dayEl.classList.add("future");
+        }
+
+        grid.appendChild(dayEl);
+    }
+}
+
+async function toggleDay(id, dStr) {
+    const streak = streaks.find(item => item.id === id);
+    if (!streak) return;
+
+    const history = [...(streak.history || [])];
+    const existingIndex = history.indexOf(dStr);
+
+    if (existingIndex >= 0) {
+        history.splice(existingIndex, 1);
+    } else {
+        history.push(dStr);
+        if (dStr === getDStr(new Date())) {
+            triggerConfetti();
+        }
+    }
+
+    history.sort();
+    streak.history = history;
+
+    saveHabits("Saved locally");
+    render();
+    renderCalendar();
+    updateYearlyProgress();
+
+    try {
+        await syncHabitToFirebase(streak);
+        saveHabits("Saved to Firebase");
+    } catch (error) {
+        console.error("Firebase calendar sync error:", error);
+        saveHabits("Saved locally only");
+        showToast("Firebase sync failed");
+    }
+}
+
+function updateYearlyProgress() {
+    const streak = streaks.find(item => item.id === activeId);
+    if (!streak) return;
+
+    const currentYear = new Date().getFullYear();
+    const daysInYear =
+        (currentYear % 4 === 0 && (currentYear % 100 !== 0 || currentYear % 400 === 0))
+            ? 366
+            : 365;
+
+    const count = (streak.history || []).filter(date => date.startsWith(String(currentYear))).length;
+    const percent = ((count / daysInYear) * 100).toFixed(1);
+
+    document.getElementById("yearly-percent").innerText = `${percent}%`;
+    document.getElementById("yearly-progress-fill").style.width = `${percent}%`;
+    document.getElementById("yearly-count").innerText = `${count} of ${daysInYear} days`;
+}
+
+function triggerConfetti() {
+    if (typeof confetti === "function") {
+        confetti({
+            particleCount: 100,
+            spread: 60,
+            origin: { y: 0.7 }
+        });
+    }
+}
+
+function updateIconSelection() {
+    document.querySelectorAll(".icon-option").forEach(el => {
+        el.classList.toggle("selected", el.innerText === selEmoji);
+    });
+}
+
+function updateColorSelection() {
+    document.querySelectorAll(".color-option").forEach(el => {
+        el.classList.toggle("selected", el.dataset.color === selColor);
+    });
+}
+
+function createIcons() {
+    iconContainer.innerHTML = "";
+
+    habitTemplates.forEach(template => {
+        const item = document.createElement("div");
+        item.className = `icon-option${template.emoji === selEmoji ? " selected" : ""}`;
+        item.innerText = template.emoji;
+
+        item.addEventListener("click", () => {
+            selEmoji = template.emoji;
+
+            const currentName = inputName.value.trim();
+            const isTemplateName = habitTemplates.some(habit => habit.name.toLowerCase() === currentName.toLowerCase());
+
+            if (currentName === "" || isTemplateName) {
+                inputName.value = template.name;
+            }
+
+            updateIconSelection();
+        });
+
+        iconContainer.appendChild(item);
+    });
+}
+
+function createColors() {
+    colorPalette.innerHTML = "";
+
+    colorOptions.forEach(color => {
+        const item = document.createElement("div");
+        item.className = "color-option";
+        item.dataset.color = color;
+        item.style.backgroundColor = color;
+
+        item.addEventListener("click", event => {
+            event.stopPropagation();
+            selColor = color;
+            inputName.style.borderColor = color;
+            confirmAddBtn.style.backgroundColor = color;
+            updateColorSelection();
+            colorPalette.classList.remove("show");
+        });
+
+        colorPalette.appendChild(item);
+    });
+
+    updateColorSelection();
+}
+
+async function addHabit() {
+    const name = inputName.value.trim();
+    if (!name) return;
+
+    if (streaks.some(streak => streak.name.toLowerCase() === name.toLowerCase())) {
+        showToast("Already exists!");
+        return;
+    }
+
+    const newHabit = {
+        id: createId(),
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        history: [],
+        color: selColor,
+        emoji: selEmoji,
+        createdAt: Date.now()
+    };
+
+    try {
+        const docRef = await addDoc(collection(db, "habits"), newHabit);
+
+        const habitWithFirebaseId = {
+            ...newHabit,
+            firebaseDocId: docRef.id
+        };
+
+        streaks.push(habitWithFirebaseId);
+        saveHabits("Saved to Firebase");
+        render();
+
+        modal.style.display = "none";
+        inputName.value = "";
+
+        console.log("FIREBASE SAVED OK, doc id:", docRef.id);
+        showToast("Saved to Firebase 🔥");
+    } catch (error) {
+        console.error("Firestore save error full:", error);
+
+        streaks.push(newHabit);
+        saveHabits("Saved locally only");
+        render();
+
+        modal.style.display = "none";
+        inputName.value = "";
+
+        alert("Firebase error: " + error.message);
+        showToast("Saved locally only");
+    }
+}
+
+async function deleteHabit() {
+    if (!streakToDeleteId) return;
+
+    const habitToDelete = streaks.find(streak => streak.id === streakToDeleteId);
+
+    try {
+        if (habitToDelete?.firebaseDocId) {
+            await deleteDoc(doc(db, "habits", habitToDelete.firebaseDocId));
+            console.log("Deleted from Firebase:", habitToDelete.firebaseDocId);
+        }
+    } catch (error) {
+        console.error("Firebase delete error:", error);
+        alert("Firebase delete error: " + error.message);
+    }
+
+    streaks = streaks.filter(streak => streak.id !== streakToDeleteId);
+
+    if (activeId === streakToDeleteId) {
+        activeId = null;
+        calOverlay.style.display = "none";
+    }
+
+    streakToDeleteId = null;
+    saveHabits("Saved locally");
+    render();
+    deleteOverlay.style.display = "none";
+    showToast("Deleted");
+}
+
+function bindEvents() {
+    sContainer.addEventListener("click", event => {
+        const target = event.target.closest("[data-action]");
+        if (!target) return;
+
+        const action = target.dataset.action;
+        const id = target.dataset.id;
+
+        if (action === "open") openStreak(id);
+        if (action === "delete") askDelete(id);
+        if (action === "add") openAddModal();
+    });
+
+    rainbowTrigger.addEventListener("click", event => {
+        event.stopPropagation();
+        colorPalette.classList.toggle("show");
+    });
+
+    confirmAddBtn.addEventListener("click", addHabit);
+
+    document.getElementById("close-modal").addEventListener("click", () => {
+        modal.style.display = "none";
+    });
+
+    document.getElementById("close-cal-modal").addEventListener("click", () => {
+        calOverlay.style.display = "none";
+    });
+
+    document.getElementById("cancel-delete").addEventListener("click", () => {
+        deleteOverlay.style.display = "none";
+    });
+
+    document.getElementById("confirm-delete").addEventListener("click", deleteHabit);
+
+    document.getElementById("prev-month").addEventListener("click", () => {
+        calDate.setMonth(calDate.getMonth() - 1);
+        renderCalendar();
+    });
+
+    document.getElementById("next-month").addEventListener("click", () => {
+        calDate.setMonth(calDate.getMonth() + 1);
+        renderCalendar();
+    });
+
+    window.addEventListener("click", event => {
+        if (event.target === modal) modal.style.display = "none";
+        if (event.target === calOverlay) calOverlay.style.display = "none";
+        if (event.target === deleteOverlay) deleteOverlay.style.display = "none";
+
+        if (!colorPalette.contains(event.target) && !rainbowTrigger.contains(event.target)) {
+            colorPalette.classList.remove("show");
+        }
+    });
+}
+
+async function init() {
+    syncStatus.innerText = "Loading...";
+    createIcons();
+    createColors();
+    bindEvents();
+    await loadHabitsFromFirebase();
+    loadingScreen.style.display = "none";
+}
+
+init();

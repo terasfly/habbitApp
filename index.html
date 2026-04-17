@@ -26,9 +26,11 @@
         <div style="font-weight: 800; color: var(--sky-blue); font-size: 0.85rem;">Loading...</div>
     </div>
 
-    <div class="container">
+    <div id="app-shell" class="container">
         <header><h1>My Streaks</h1></header>
-        <div class="sync-status" id="sync-status">Local Storage</div>
+        <div class="session-row">
+            <div class="sync-status" id="sync-status">Local Storage</div>
+        </div>
 
         <div class="progress-container">
             <div class="progress-text">
@@ -43,7 +45,6 @@
         <div class="streaks-grid" id="streaks-container"></div>
     </div>
 
-    <!-- New Habit Modal -->
     <div id="modal-overlay" class="overlay">
         <div class="modal">
             <h2 style="margin-bottom: 12px; color: var(--sky-blue); font-size: 1.2rem;">New Habit</h2>
@@ -58,7 +59,6 @@
         </div>
     </div>
 
-    <!-- Calendar Modal -->
     <div id="calendar-overlay" class="overlay">
         <div class="modal">
             <h2 id="cal-title" style="margin-bottom: 8px; font-size: 1.1rem;">Habit</h2>
@@ -84,7 +84,6 @@
         </div>
     </div>
 
-    <!-- Delete Modal -->
     <div id="delete-confirm-overlay" class="overlay">
         <div class="modal">
             <h2 style="color: var(--danger); margin-bottom: 8px; font-size: 1.2rem;">Delete?</h2>
