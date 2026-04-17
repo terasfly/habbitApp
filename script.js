@@ -122,11 +122,14 @@ function saveHabits(statusText = "Saved locally") {
 function loadHabitsFromLocal() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        streaks = raw ? JSON.parse(raw) : [];
+        const parsed = raw ? JSON.parse(raw) : [];
 
-        if (!Array.isArray(streaks)) {
+        if (!Array.isArray(parsed)) {
             streaks = [];
+            return;
         }
+
+        streaks = parsed.map(item => normalizeHabit(item, item.firebaseDocId));
     } catch (error) {
         streaks = [];
         showToast("Storage error");
