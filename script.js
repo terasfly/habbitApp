@@ -645,13 +645,30 @@ function bindEvents() {
     });
 }
 
+function loadHabitsFromFirebaseWithTimeout(timeoutMs = 8000) {
+    return Promise.race([
+        loadHabitsFromFirebase(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Firebase timeout")), timeoutMs))
+    ]);
+}
+
 async function init() {
     syncStatus.innerText = "Loading...";
     createIcons();
     createColors();
     bindEvents();
-    await loadHabitsFromFirebase();
-    loadingScreen.style.display = "none";
+
+    try {
+        await loadHabitsFromFirebaseWithTimeout();
+    } catch (error) {
+        console.warn("Firebase load failed or timed out:", error);
+        loadHabitsFromLocal();
+        render();
+        saveHabits("Loaded local backup");
+        showToast("Loaded local backup");
+    } finally {
+        loadingScreen.style.display = "none";
+    }
 }
 
 init();
