@@ -367,6 +367,29 @@ function hexToRgb(hex) {
     return `${r}, ${g}, ${b}`;
 }
 
+function mixChannel(start, end, ratio) {
+    return Math.round(start + (end - start) * ratio);
+}
+
+function getProgressColors(ratio) {
+    const clamped = Math.max(0, Math.min(1, ratio));
+    const start = {
+        r: mixChannel(255, 255, clamped),
+        g: mixChannel(59, 160, clamped),
+        b: mixChannel(48, 220, clamped)
+    };
+    const end = {
+        r: mixChannel(248, 125, clamped),
+        g: mixChannel(113, 211, clamped),
+        b: mixChannel(113, 252, clamped)
+    };
+
+    return {
+        start: `rgb(${start.r}, ${start.g}, ${start.b})`,
+        end: `rgb(${end.r}, ${end.g}, ${end.b})`
+    };
+}
+
 function render() {
     sContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
@@ -383,15 +406,15 @@ function render() {
 
         card.innerHTML = `
             <button class="delete-btn" data-action="delete" data-id="${streak.id}">✕</button>
-            <div class="ring-wrapper">
+            <div class="ring-wrapper" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                 <div class="ring-track"></div>
                 <div class="ring-progress" style="background: conic-gradient(${color} ${stats.percent}%, transparent 0)"></div>
                 <div class="ring-dot-container" style="transform: rotate(${rotation}deg)">
-                    <div class="ring-dot${isDone ? " done-today" : ""}" style="box-shadow: 0 0 5px #fff, 0 0 10px ${color};"></div>
+                    <div class="ring-dot${isDone ? " done-today" : ""}"></div>
                 </div>
                 <div class="bubble${isDone ? " done-today" : ""}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                     ${isDone ? `<div class="check-badge" aria-hidden="true">✓</div>` : ""}
-                    <div class="icon-badge" style="box-shadow: 0 4px 10px ${color}33;">
+                    <div class="icon-badge${isDone ? " vivid" : ""}">
                         <div class="streak-emoji">${streak.emoji || "📚"}</div>
                     </div>
                     <div class="counter-row">
@@ -449,10 +472,15 @@ function render() {
     startInsightRotation();
 
     const completed = streaks.filter(streak => (streak.history || []).includes(todayStr)).length;
+    const progressRatio = streaks.length ? completed / streaks.length : 0;
+    const progressColors = getProgressColors(progressRatio);
+
     document.getElementById("progress-text").innerText = `${completed}/${streaks.length}`;
     document.getElementById("progress-fill").style.width = streaks.length
-        ? `${(completed / streaks.length) * 100}%`
+        ? `${progressRatio * 100}%`
         : "0%";
+    document.getElementById("progress-fill").style.setProperty("--progress-start", progressColors.start);
+    document.getElementById("progress-fill").style.setProperty("--progress-end", progressColors.end);
 }
 
 function openStreak(id) {
