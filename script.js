@@ -20,6 +20,7 @@ let calDate = new Date();
 let selColor = "#63b3ed";
 let selEmoji = "🌅";
 let selectedIconElement = null;
+let recentCompletionId = null;
 
 const habitTemplates = [
     { emoji: "🌅", name: "Wake up early" },
@@ -247,6 +248,16 @@ function getMonthProgress(history) {
     };
 }
 
+function hexToRgb(hex) {
+    const clean = hex.replace("#", "");
+    const full = clean.length === 3 ? clean.split("").map(ch => ch + ch).join("") : clean;
+    const int = parseInt(full, 16);
+    const r = (int >> 16) & 255;
+    const g = (int >> 8) & 255;
+    const b = int & 255;
+    return `${r}, ${g}, ${b}`;
+}
+
 function render() {
     sContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
@@ -254,6 +265,7 @@ function render() {
     streaks.forEach(streak => {
         const isDone = (streak.history || []).includes(todayStr);
         const color = streak.color || "#63b3ed";
+        const colorRgb = hexToRgb(color);
         const stats = getMonthProgress(streak.history || []);
         const rotation = (stats.percent / 100) * 360;
 
@@ -268,7 +280,7 @@ function render() {
                 <div class="ring-dot-container" style="transform: rotate(${rotation}deg)">
                     <div class="ring-dot" style="box-shadow: 0 0 5px #fff, 0 0 10px ${color};"></div>
                 </div>
-                <div class="bubble" data-action="open" data-id="${streak.id}">
+                <div class="bubble" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                     <div class="icon-badge" style="box-shadow: 0 4px 10px ${color}33;">
                         <div class="streak-emoji">${streak.emoji || "📚"}</div>
                     </div>
@@ -288,6 +300,15 @@ function render() {
         `;
 
         sContainer.appendChild(card);
+
+        if (streak.id === recentCompletionId) {
+            const bubble = card.querySelector(".bubble");
+            if (bubble) {
+                bubble.classList.add("recent-complete");
+                bubble.addEventListener("animationend", () => bubble.classList.remove("recent-complete"), { once: true });
+            }
+            recentCompletionId = null;
+        }
     });
 
     const addCard = document.createElement("div");
@@ -380,7 +401,11 @@ function renderCalendar() {
         }
 
         if (dayDate <= today) {
-            dayEl.addEventListener("click", () => toggleDay(activeId, dStr));
+            dayEl.addEventListener("click", () => {
+                dayEl.classList.add("flash-on");
+                window.setTimeout(() => dayEl.classList.remove("flash-on"), 280);
+                requestAnimationFrame(() => toggleDay(activeId, dStr));
+            });
         } else {
             dayEl.classList.add("future");
         }
@@ -400,6 +425,7 @@ async function toggleDay(id, dStr) {
         history.splice(existingIndex, 1);
     } else {
         history.push(dStr);
+        recentCompletionId = id;
         if (dStr === getDStr(new Date())) {
             triggerConfetti();
         }

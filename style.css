@@ -156,7 +156,7 @@ h1 {
     -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #fff 0);
     mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #fff 0);
     z-index: 5;
-    transition: background 0.5s ease;
+    transition: background 0.55s ease-out, box-shadow 0.35s ease-out;
 }
 
 .ring-dot-container {
@@ -193,6 +193,58 @@ h1 {
     padding: 8px;
     overflow: hidden;
     text-align: center;
+    position: relative;
+    transition: transform 0.2s ease, box-shadow 0.22s ease, background 0.22s ease;
+    will-change: transform, box-shadow, opacity;
+}
+
+.bubble::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 35%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.bubble.recent-complete {
+    animation: bubble-glow 0.28s ease-out forwards;
+}
+
+.bubble.recent-complete::before {
+    opacity: 1;
+    animation: flash-pass 0.42s ease-out forwards;
+}
+
+@keyframes bubble-glow {
+    0% {
+        transform: scale(1);
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.08);
+    }
+    20% {
+        transform: scale(1.05);
+        box-shadow: inset 0 1px 4px rgba(0,0,0,0.14), 0 0 35px rgba(var(--habit-rgb, 99, 179, 237), 0.18);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.12), 0 12px 24px rgba(var(--habit-rgb, 99, 179, 237), 0.08);
+    }
+}
+
+@keyframes flash-pass {
+    0% {
+        opacity: 0;
+        transform: translateX(-40%) scale(0.85);
+    }
+    40% {
+        opacity: 0.45;
+        transform: translateX(10%) scale(1.05);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(110%) scale(1.15);
+    }
 }
 
 .icon-badge {
@@ -642,6 +694,13 @@ input[type="text"] {
     font-size: 0.8rem;
     cursor: pointer;
     color: var(--text-color);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.calendar-day.flash-on {
+    transform: scale(1.06);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 16px rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.12);
 }
 
 .calendar-day.today {
