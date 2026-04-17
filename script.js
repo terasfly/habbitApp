@@ -21,6 +21,21 @@ let selColor = "#63b3ed";
 let selEmoji = "🌅";
 let selectedIconElement = null;
 let recentCompletionId = null;
+let recentCompletionMessage = null;
+
+const rewardMessages = [
+    "Nice 👌",
+    "Good job 🔥",
+    "Keep going 💪",
+    "Day %d 🔥"
+];
+
+function getCompletionMessage(streak) {
+    const doneCount = (streak.history || []).length;
+    const available = rewardMessages.map(msg => msg.includes("%d") ? msg.replace("%d", doneCount || 1) : msg);
+    const index = Math.floor(Math.random() * available.length);
+    return available[index];
+}
 
 const habitTemplates = [
     { emoji: "🌅", name: "Wake up early" },
@@ -248,6 +263,100 @@ function getMonthProgress(history) {
     };
 }
 
+function getWeekProgress(history) {
+    const now = new Date();
+    const dayOfWeek = (now.getDay() + 6) % 7;
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - dayOfWeek);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const count = (history || []).filter(date => {
+        const d = new Date(date);
+        return d >= weekStart && d <= now;
+    }).length;
+
+    return {
+        count,
+        days: 7
+    };
+}
+
+const insightMessagesById = {};
+let insightRotationTimer = null;
+
+function getInsightMessages(streak, isDone) {
+    const week = getWeekProgress(streak.history || []);
+    const history = streak.history || [];
+    const lastDone = history.slice().sort().pop();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getDStr(yesterday);
+    const didYesterday = lastDone === yesterdayStr;
+    const messages = [];
+
+    if (isDone) {
+        messages.push("🔥 Done today 🔥");
+        if (week.days > 0) {
+            if (week.count === week.days) {
+                messages.push("Perfect week");
+            } else if (week.count > 0) {
+                messages.push(`Week ${week.count}/${week.days}`);
+            } else {
+                messages.push("On track");
+            }
+        } else {
+            messages.push("Great job");
+        }
+    } else {
+        if (didYesterday) {
+            messages.push("❄️ Do today ❄️");
+        } else {
+            messages.push("Keep it going");
+        }
+
+        if (week.days > 0) {
+            if (week.count >= Math.max(1, week.days - 1)) {
+                messages.push("Almost best");
+            } else {
+                messages.push(`Week ${week.count}/${week.days}`);
+            }
+        }
+    }
+
+    return messages.slice(0, 2);
+}
+
+function fadeInsightText(el, text) {
+    if (!el) return;
+    el.classList.add("insight-fade-out");
+    window.setTimeout(() => {
+        el.textContent = text;
+        el.classList.remove("insight-fade-out");
+    }, 240);
+}
+
+function updateAllInsights() {
+    document.querySelectorAll(".streak-identity[data-habit-id]").forEach(identity => {
+        const habitId = identity.dataset.habitId;
+        const messages = insightMessagesById[habitId];
+        if (!messages || messages.length < 2) return;
+
+        const nextIndex = (Number(identity.dataset.insightIndex || 0) + 1) % messages.length;
+        identity.dataset.insightIndex = nextIndex;
+        const insightEl = identity.querySelector(".streak-insight");
+        if (insightEl) {
+            fadeInsightText(insightEl, messages[nextIndex]);
+        }
+    });
+}
+
+function startInsightRotation() {
+    if (insightRotationTimer) {
+        window.clearInterval(insightRotationTimer);
+    }
+    insightRotationTimer = window.setInterval(updateAllInsights, 4600);
+}
+
 function hexToRgb(hex) {
     const clean = hex.replace("#", "");
     const full = clean.length === 3 ? clean.split("").map(ch => ch + ch).join("") : clean;
@@ -278,9 +387,10 @@ function render() {
                 <div class="ring-track"></div>
                 <div class="ring-progress" style="background: conic-gradient(${color} ${stats.percent}%, transparent 0)"></div>
                 <div class="ring-dot-container" style="transform: rotate(${rotation}deg)">
-                    <div class="ring-dot" style="box-shadow: 0 0 5px #fff, 0 0 10px ${color};"></div>
+                    <div class="ring-dot${isDone ? " done-today" : ""}" style="box-shadow: 0 0 5px #fff, 0 0 10px ${color};"></div>
                 </div>
-                <div class="bubble" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
+                <div class="bubble${isDone ? " done-today" : ""}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
+                    ${isDone ? `<div class="check-badge" aria-hidden="true">✓</div>` : ""}
                     <div class="icon-badge" style="box-shadow: 0 4px 10px ${color}33;">
                         <div class="streak-emoji">${streak.emoji || "📚"}</div>
                     </div>
@@ -294,12 +404,13 @@ function render() {
                     <div class="best-label">🔥 ${stats.best}</div>
                 </div>
             </div>
-            <div class="streak-identity" style="border-color: ${color}" data-action="open" data-id="${streak.id}">
+            <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="0">
                 <div class="streak-name">${streak.name}</div>
+                <div class="streak-insight">${getInsightMessages(streak, isDone)[0]}</div>
             </div>
         `;
 
-        sContainer.appendChild(card);
+        insightMessagesById[streak.id] = getInsightMessages(streak, isDone);
 
         if (streak.id === recentCompletionId) {
             const bubble = card.querySelector(".bubble");
@@ -307,8 +418,20 @@ function render() {
                 bubble.classList.add("recent-complete");
                 bubble.addEventListener("animationend", () => bubble.classList.remove("recent-complete"), { once: true });
             }
+
+            const feedback = document.createElement("div");
+            feedback.className = "completion-feedback";
+            feedback.innerText = recentCompletionMessage || "Nice 👌";
+            card.appendChild(feedback);
+            feedback.addEventListener("animationend", () => {
+                if (feedback.parentNode) feedback.parentNode.removeChild(feedback);
+            }, { once: true });
+
             recentCompletionId = null;
+            recentCompletionMessage = null;
         }
+
+        sContainer.appendChild(card);
     });
 
     const addCard = document.createElement("div");
@@ -322,6 +445,8 @@ function render() {
         </div>
     `;
     sContainer.appendChild(addCard);
+
+    startInsightRotation();
 
     const completed = streaks.filter(streak => (streak.history || []).includes(todayStr)).length;
     document.getElementById("progress-text").innerText = `${completed}/${streaks.length}`;
@@ -426,6 +551,8 @@ async function toggleDay(id, dStr) {
     } else {
         history.push(dStr);
         recentCompletionId = id;
+        const streak = streaks.find(item => item.id === id);
+        recentCompletionMessage = streak ? getCompletionMessage({ ...streak, history }) : "Nice 👌";
         if (dStr === getDStr(new Date())) {
             triggerConfetti();
         }
