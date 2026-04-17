@@ -19,6 +19,7 @@ let streakToDeleteId = null;
 let calDate = new Date();
 let selColor = "#63b3ed";
 let selEmoji = "🌅";
+let selectedIconElement = null;
 
 const habitTemplates = [
     { emoji: "🌅", name: "Wake up early" },
@@ -450,10 +451,15 @@ function triggerConfetti() {
     }
 }
 
-function updateIconSelection() {
-    document.querySelectorAll(".icon-option").forEach(el => {
-        el.classList.toggle("selected", el.innerText === selEmoji);
-    });
+function updateIconSelection(newSelectedElement) {
+    if (selectedIconElement === newSelectedElement) return;
+    if (selectedIconElement) {
+        selectedIconElement.classList.remove("selected");
+    }
+    selectedIconElement = newSelectedElement;
+    if (selectedIconElement) {
+        selectedIconElement.classList.add("selected");
+    }
 }
 
 function updateColorSelection() {
@@ -464,11 +470,22 @@ function updateColorSelection() {
 
 function createIcons() {
     iconContainer.innerHTML = "";
+    selectedIconElement = null;
 
     habitTemplates.forEach(template => {
         const item = document.createElement("div");
         item.className = `icon-option${template.emoji === selEmoji ? " selected" : ""}`;
         item.innerText = template.emoji;
+
+        if (template.emoji === selEmoji) {
+            selectedIconElement = item;
+        }
+
+        item.addEventListener("pointerdown", () => {
+            if (selectedIconElement !== item) {
+                updateIconSelection(item);
+            }
+        });
 
         item.addEventListener("click", () => {
             selEmoji = template.emoji;
@@ -480,7 +497,7 @@ function createIcons() {
                 inputName.value = template.name;
             }
 
-            updateIconSelection();
+            updateIconSelection(item);
         });
 
         iconContainer.appendChild(item);
