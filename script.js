@@ -4,7 +4,8 @@ import {
     addDoc,
     deleteDoc,
     doc,
-    getDocs
+    getDocs,
+    updateDoc
 } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-firestore.js";
 
 console.log("Firebase connected:", app);
@@ -132,18 +133,39 @@ function loadHabitsFromLocal() {
     }
 }
 
+function normalizeHistory(history) {
+    if (Array.isArray(history)) {
+        return history
+            .filter(item => typeof item === "string")
+            .sort();
+    }
+
+    if (history && Array.isArray(history.days)) {
+        return history.days
+            .filter(item => typeof item === "string")
+            .sort();
+    }
+
+    return [];
+}
+
+function normalizeHabit(data, firebaseDocId) {
+    return {
+        id: data.id || createId(),
+        name: data.name || "Unnamed habit",
+        history: normalizeHistory(data.history),
+        color: data.color || "#63b3ed",
+        emoji: data.emoji || "📚",
+        createdAt: typeof data.createdAt === "number" ? data.createdAt : Date.now(),
+        firebaseDocId
+    };
+}
+
 async function loadHabitsFromFirebase() {
     try {
         const querySnapshot = await getDocs(collection(db, "habits"));
 
-        streaks = querySnapshot.docs.map(docSnap => {
-            const data = docSnap.data();
-
-            return {
-                ...data,
-                firebaseDocId: docSnap.id
-            };
-        });
+        streaks = querySnapshot.docs.map(docSnap => normalizeHabit(docSnap.data(), docSnap.id));
 
         saveHabits("Loaded from Firebase");
         render();
@@ -155,6 +177,26 @@ async function loadHabitsFromFirebase() {
         saveHabits("Loaded local backup");
         showToast("Loaded local backup");
     }
+}
+
+async function syncHabitToFirebase(streak) {
+    const payload = {
+        id: streak.id,
+        name: streak.name,
+        history: normalizeHistory(streak.history),
+        color: streak.color || "#63b3ed",
+        emoji: streak.emoji || "📚",
+        createdAt: typeof streak.createdAt === "number" ? streak.createdAt : Date.now()
+    };
+
+    if (streak.firebaseDocId) {
+        await updateDoc(doc(db, "habits", streak.firebaseDocId), payload);
+        return streak.firebaseDocId;
+    }
+
+    const docRef = await addDoc(collection(db, "habits"), payload);
+    streak.firebaseDocId = docRef.id;
+    return docRef.id;
 }
 
 function calculateMonthlyRecord(history) {
@@ -343,7 +385,7 @@ function renderCalendar() {
     }
 }
 
-function toggleDay(id, dStr) {
+async function toggleDay(id, dStr) {
     const streak = streaks.find(item => item.id === id);
     if (!streak) return;
 
@@ -366,6 +408,15 @@ function toggleDay(id, dStr) {
     render();
     renderCalendar();
     updateYearlyProgress();
+
+    try {
+        await syncHabitToFirebase(streak);
+        saveHabits("Saved to Firebase");
+    } catch (error) {
+        console.error("Firebase calendar sync error:", error);
+        saveHabits("Saved locally only");
+        showToast("Firebase sync failed");
+    }
 }
 
 function updateYearlyProgress() {
