@@ -4,7 +4,8 @@ import {
     addDoc,
     deleteDoc,
     doc,
-    getDocs
+    getDocs,
+    updateDoc
 } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-firestore.js";
 
 console.log("Firebase connected:", app);
@@ -127,6 +128,7 @@ function loadHabitsFromLocal() {
             streaks = [];
         }
     } catch (error) {
+        console.error("Local storage load error:", error);
         streaks = [];
         showToast("Storage error");
     }
@@ -140,7 +142,12 @@ async function loadHabitsFromFirebase() {
             const data = docSnap.data();
 
             return {
-                ...data,
+                id: data.id || createId(),
+                name: data.name || "Untitled",
+                history: Array.isArray(data.history) ? data.history : [],
+                color: data.color || "#63b3ed",
+                emoji: data.emoji || "📚",
+                createdAt: data.createdAt || Date.now(),
                 firebaseDocId: docSnap.id
             };
         });
@@ -343,7 +350,25 @@ function renderCalendar() {
     }
 }
 
-function toggleDay(id, dStr) {
+async function syncHabitToFirebase(streak) {
+    const payload = {
+        id: streak.id,
+        name: streak.name,
+        history: Array.isArray(streak.history) ? streak.history : [],
+        color: streak.color || "#63b3ed",
+        emoji: streak.emoji || "📚",
+        createdAt: streak.createdAt || Date.now()
+    };
+
+    if (streak.firebaseDocId) {
+        await updateDoc(doc(db, "habits", streak.firebaseDocId), payload);
+    } else {
+        const docRef = await addDoc(collection(db, "habits"), payload);
+        streak.firebaseDocId = docRef.id;
+    }
+}
+
+async function toggleDay(id, dStr) {
     const streak = streaks.find(item => item.id === id);
     if (!streak) return;
 
@@ -354,6 +379,7 @@ function toggleDay(id, dStr) {
         history.splice(existingIndex, 1);
     } else {
         history.push(dStr);
+
         if (dStr === getDStr(new Date())) {
             triggerConfetti();
         }
@@ -362,10 +388,22 @@ function toggleDay(id, dStr) {
     history.sort();
     streak.history = history;
 
-    saveHabits("Saved locally");
     render();
     renderCalendar();
     updateYearlyProgress();
+    saveHabits("Saving...");
+
+    try {
+        await syncHabitToFirebase(streak);
+        saveHabits("Saved to Firebase");
+        showToast("Saved to Firebase");
+        console.log("Day history saved to Firebase:", streak.history);
+    } catch (error) {
+        console.error("Firebase update error:", error);
+        saveHabits("Saved locally only");
+        showToast("Saved locally only");
+        alert("Firebase update error: " + error.message);
+    }
 }
 
 function updateYearlyProgress() {
@@ -420,7 +458,9 @@ function createIcons() {
             selEmoji = template.emoji;
 
             const currentName = inputName.value.trim();
-            const isTemplateName = habitTemplates.some(habit => habit.name.toLowerCase() === currentName.toLowerCase());
+            const isTemplateName = habitTemplates.some(
+                habit => habit.name.toLowerCase() === currentName.toLowerCase()
+            );
 
             if (currentName === "" || isTemplateName) {
                 inputName.value = template.name;
