@@ -248,6 +248,28 @@ function calculateMonthlyRecord(history) {
     return maxStreak;
 }
 
+function getRecentWeekDays(history) {
+    const historySet = new Set(history || []);
+    const days = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let offset = 6; offset >= 0; offset--) {
+        const day = new Date(today);
+        day.setDate(today.getDate() - offset);
+        const dateKey = getDStr(day);
+
+        days.push({
+            dateKey,
+            dayNumber: day.getDate(),
+            completed: historySet.has(dateKey),
+            isToday: offset === 0
+        });
+    }
+
+    return days;
+}
+
 function getMonthProgress(history) {
     const now = new Date();
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -256,9 +278,6 @@ function getMonthProgress(history) {
 
     return {
         percent: (filledCount / daysInMonth) * 100,
-        count: filledCount,
-        daysInMonth,
-        abbr: now.toLocaleString("en-US", { month: "short" }).toUpperCase(),
         best: calculateMonthlyRecord(history)
     };
 }
@@ -399,7 +418,11 @@ function render() {
         const color = streak.color || "#63b3ed";
         const colorRgb = hexToRgb(color);
         const stats = getMonthProgress(streak.history || []);
+        const recentWeekDays = getRecentWeekDays(streak.history || []);
         const rotation = (stats.percent / 100) * 360;
+        const streakDots = recentWeekDays.map(day => `
+            <span class="streak-dot-mini${day.completed ? " filled" : ""}${day.isToday ? " is-today" : ""}${streak.id === recentCompletionId && day.isToday && day.completed ? " recent-hit" : ""}" aria-label="${day.dateKey} ${day.completed ? "completed" : "not completed"}">${day.dayNumber}</span>
+        `).join("");
 
         const card = document.createElement("div");
         card.className = "streak-card";
@@ -414,15 +437,15 @@ function render() {
                 </div>
                 <div class="bubble${isDone ? " done-today" : ""}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                     ${isDone ? `<div class="check-badge" aria-hidden="true">✓</div>` : ""}
-                    <div class="icon-badge${isDone ? " vivid" : ""}">
+                    <div class="icon-badge">
                         <div class="streak-emoji">${streak.emoji || "📚"}</div>
                     </div>
-                    <div class="counter-row">
-                        <div class="streak-count" style="color: ${isDone ? color : "var(--sky-blue)"}">
-                            ${Math.round(stats.percent)}<span class="percent-sign">%</span><span class="month-abbr">${stats.abbr}</span>
-                        </div>
+                    <div class="streak-count" style="color: ${isDone ? "var(--bubble-done-text, #f8fafc)" : "var(--sky-blue)"}">
+                        ${Math.round(stats.percent)}<span class="percent-sign">%</span>
                     </div>
-                    <div class="fraction-text">${stats.count} / ${stats.daysInMonth}</div>
+                    <div class="streak-dots" aria-label="Last 7 days activity">
+                        ${streakDots}
+                    </div>
                     <div class="separator"></div>
                     <div class="best-label">🔥 ${stats.best}</div>
                 </div>
