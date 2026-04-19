@@ -20,6 +20,11 @@ let calDate = new Date();
 let selColor = "#63b3ed";
 let selEmoji = "🌅";
 let selectedIconElement = null;
+let selectedColorDisplay = "#63b3ed";
+let suggestedColor = "#63b3ed";
+let userHasPickedColor = false;
+let colorPickerMode = "create";
+let colorSyncTimeout = null;
 let recentCompletionId = null;
 let recentCompletionMessage = null;
 
@@ -88,13 +93,59 @@ const habitTemplates = [
     { emoji: "😊", name: "Smile often" }
 ];
 
-const colorOptions = [
-    "#63b3ed", "#f687b3", "#48bb78", "#f6ad55", "#a78bfa",
-    "#f56565", "#38b2ac", "#ed8936", "#4299e1", "#9f7aea",
-    "#ecc94b", "#4fd1c5", "#fc8181", "#68d391", "#90cdf4",
-    "#fbb6ce", "#c084fc", "#fbd38d", "#81e6d9", "#b794f4",
-    "#2dd4bf", "#22c55e", "#fb7185", "#60a5fa", "#f97316",
-    "#e879f9", "#facc15", "#34d399", "#818cf8", "#fb923c"
+const RECENT_COLORS_KEY = "myStreaksRecentColors";
+
+const colorGroups = [
+    {
+        name: "Cool",
+        colors: [
+            { value: "#63b3ed", label: "Sky", display: "#63b3ed" },
+            { value: "#4fd1c5", label: "Cyan", display: "#4fd1c5" },
+            { value: "#818cf8", label: "Blue Violet", display: "linear-gradient(135deg, #60a5fa, #a78bfa)" }
+        ]
+    },
+    {
+        name: "Energy",
+        colors: [
+            { value: "#f56565", label: "Red", display: "#f56565" },
+            { value: "#f97316", label: "Orange", display: "#f97316" },
+            { value: "#fb7185", label: "Pink Orange", display: "linear-gradient(135deg, #fb7185, #fb923c)" }
+        ]
+    },
+    {
+        name: "Nature",
+        colors: [
+            { value: "#48bb78", label: "Green", display: "#48bb78" },
+            { value: "#34d399", label: "Mint", display: "#34d399" },
+            { value: "#2dd4bf", label: "Green Cyan", display: "linear-gradient(135deg, #22c55e, #2dd4bf)" }
+        ]
+    },
+    {
+        name: "Mind",
+        colors: [
+            { value: "#a78bfa", label: "Purple", display: "#a78bfa" },
+            { value: "#f687b3", label: "Pink", display: "#f687b3" },
+            { value: "#c084fc", label: "Purple Pink", display: "linear-gradient(135deg, #a78bfa, #f687b3)" }
+        ]
+    },
+    {
+        name: "Focus",
+        colors: [
+            { value: "#ecc94b", label: "Gold", display: "#ecc94b" },
+            { value: "#fbd38d", label: "Warm Yellow", display: "#fbd38d" },
+            { value: "#facc15", label: "Sunlit", display: "linear-gradient(135deg, #facc15, #fb923c)" }
+        ]
+    }
+];
+
+const colorSuggestions = [
+    { keywords: ["brain", "learn", "vocabulary", "idea"], color: "#a78bfa" },
+    { keywords: ["exercise", "stretch", "posture", "walk"], color: "#63b3ed" },
+    { keywords: ["read", "book", "study"], color: "#f687b3" },
+    { keywords: ["meditate", "prayer", "gratitude", "breathe"], color: "#ecc94b" },
+    { keywords: ["food", "eat", "cook", "protein", "breakfast", "sugar", "soda"], color: "#f97316" },
+    { keywords: ["water", "shower"], color: "#4fd1c5" },
+    { keywords: ["money", "save", "spending"], color: "#48bb78" }
 ];
 
 const sContainer = document.getElementById("streaks-container");
@@ -106,6 +157,11 @@ const inputName = document.getElementById("new-streak-name");
 const iconContainer = document.getElementById("icon-selector");
 const colorPalette = document.getElementById("color-palette");
 const rainbowTrigger = document.getElementById("rainbow-trigger");
+const customColorInput = document.getElementById("custom-color-input");
+const editColorPalette = document.getElementById("edit-color-palette");
+const editColorTrigger = document.getElementById("edit-color-trigger");
+const editCustomColorInput = document.getElementById("edit-custom-color-input");
+const editColorStatus = document.getElementById("edit-color-status");
 const confirmAddBtn = document.getElementById("confirm-add");
 const syncStatus = document.getElementById("sync-status");
 const loadingScreen = document.getElementById("loading-screen");
@@ -118,6 +174,121 @@ function showToast(msg) {
     showToast.timeoutId = setTimeout(() => {
         toast.style.opacity = "0";
     }, 2000);
+}
+
+function getAllColorOptions() {
+    return colorGroups.flatMap(group => group.colors);
+}
+
+function getColorOption(color) {
+    return getAllColorOptions().find(option => option.value.toLowerCase() === color.toLowerCase());
+}
+
+function getRecentColors() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(RECENT_COLORS_KEY) || "[]");
+        return Array.isArray(parsed)
+            ? parsed.filter(color => typeof color === "string" && color.startsWith("#")).slice(0, 5)
+            : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function saveRecentColor(color) {
+    const recent = [color, ...getRecentColors().filter(item => item.toLowerCase() !== color.toLowerCase())].slice(0, 5);
+    localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(recent));
+}
+
+function getSuggestedColorForTemplate(template) {
+    const haystack = `${template.name} ${template.emoji}`.toLowerCase();
+    const match = colorSuggestions.find(suggestion => suggestion.keywords.some(keyword => haystack.includes(keyword)));
+    return match ? match.color : "#63b3ed";
+}
+
+function getActiveStreak() {
+    return streaks.find(item => item.id === activeId);
+}
+
+function updateEditColorControl() {
+    const streak = getActiveStreak();
+    if (!streak || !editColorTrigger || !editCustomColorInput) return;
+
+    const color = streak.color || "#63b3ed";
+    editColorTrigger.style.setProperty("--edit-color", color);
+    editColorTrigger.style.setProperty("--edit-rgb", hexToRgb(color));
+    editColorTrigger.style.background = `
+        radial-gradient(circle at 28% 24%, rgba(255,255,255,0.72), rgba(255,255,255,0.08) 36%, rgba(255,255,255,0) 58%),
+        ${color}
+    `;
+    editColorTrigger.style.boxShadow = `0 12px 24px rgba(${hexToRgb(color)}, 0.30), inset 0 1px 3px rgba(255,255,255,0.36)`;
+    editCustomColorInput.value = color;
+}
+
+function scheduleHabitColorSync(streak) {
+    if (colorSyncTimeout) {
+        window.clearTimeout(colorSyncTimeout);
+    }
+
+    colorSyncTimeout = window.setTimeout(async () => {
+        try {
+            await syncHabitToFirebase(streak);
+            saveHabits("Saved to Firebase");
+            if (editColorStatus) editColorStatus.textContent = "Saved accent";
+        } catch (error) {
+            console.error("Firebase color sync error:", error);
+            saveHabits("Saved locally only");
+            if (editColorStatus) editColorStatus.textContent = "Saved locally";
+            showToast("Firebase sync failed");
+        }
+    }, 350);
+}
+
+function updateActiveHabitColor(color) {
+    const streak = getActiveStreak();
+    if (!streak) return;
+
+    streak.color = color;
+    saveRecentColor(color);
+    saveHabits("Saved locally");
+    render();
+    renderCalendar();
+    updateYearlyProgress();
+    updateEditColorControl();
+    renderRecentColors();
+    updateColorSelection();
+    updateColorPreview();
+    if (editColorStatus) editColorStatus.textContent = "Saving...";
+    scheduleHabitColorSync(streak);
+}
+
+function applySelectedColor(color, options = {}) {
+    const colorOption = getColorOption(color);
+
+    selColor = color;
+    selectedColorDisplay = options.display || colorOption?.display || color;
+    colorPickerMode = options.mode || colorPickerMode;
+
+    if (colorPickerMode === "edit") {
+        editCustomColorInput.value = selColor;
+    } else {
+        inputName.style.borderColor = selColor;
+        confirmAddBtn.style.backgroundColor = selColor;
+        confirmAddBtn.style.boxShadow = `0 10px 26px rgba(${hexToRgb(selColor)}, 0.28)`;
+        customColorInput.value = selColor;
+    }
+
+    updateColorSelection();
+    updateColorPreview();
+
+    if (options.remember) {
+        saveRecentColor(selColor);
+        renderRecentColors();
+    }
+
+    if (colorPickerMode === "edit" && options.persist) {
+        updateActiveHabitColor(selColor);
+    }
 }
 
 function getDStr(date) {
@@ -626,6 +797,16 @@ function render() {
 
 function openStreak(id) {
     activeId = id;
+    colorPickerMode = "edit";
+    const streak = getActiveStreak();
+    if (streak) {
+        selColor = streak.color || "#63b3ed";
+        selectedColorDisplay = getColorOption(selColor)?.display || selColor;
+        suggestedColor = selColor;
+    }
+    updateEditColorControl();
+    updateColorSelection();
+    updateColorPreview();
     calDate = new Date();
     renderCalendar();
     updateYearlyProgress();
@@ -633,16 +814,15 @@ function openStreak(id) {
 }
 
 function openAddModal() {
+    colorPickerMode = "create";
     modal.style.display = "flex";
     inputName.value = habitTemplates[0].name;
     selEmoji = habitTemplates[0].emoji;
-    selColor = "#63b3ed";
-
-    inputName.style.borderColor = selColor;
-    confirmAddBtn.style.backgroundColor = selColor;
+    suggestedColor = getSuggestedColorForTemplate(habitTemplates[0]);
+    userHasPickedColor = false;
 
     updateIconSelection();
-    updateColorSelection();
+    applySelectedColor(suggestedColor);
     iconContainer.scrollTop = 0;
 }
 
@@ -830,8 +1010,77 @@ function updateIconSelection(newSelectedElement) {
 
 function updateColorSelection() {
     document.querySelectorAll(".color-option").forEach(el => {
-        el.classList.toggle("selected", el.dataset.color === selColor);
+        const isSelected = el.dataset.color === selColor;
+        const isSuggested = el.dataset.color === suggestedColor;
+
+        el.classList.toggle("selected", isSelected);
+        el.classList.toggle("suggested", isSuggested && !isSelected);
+        el.style.setProperty("--swatch-rgb", hexToRgb(el.dataset.color));
     });
+}
+
+function updateColorPreview() {
+    document.querySelectorAll(".color-preview").forEach(preview => {
+        const palette = preview.closest(".color-popover");
+        const mode = palette?.dataset.mode || "create";
+        const streak = getActiveStreak();
+        const previewColor = mode === "edit" && streak ? streak.color || "#63b3ed" : selColor;
+        const previewDisplay = getColorOption(previewColor)?.display || previewColor;
+        const previewEmoji = mode === "edit" && streak ? streak.emoji || "📚" : selEmoji;
+        const previewRing = preview.querySelector(".color-preview-ring");
+        const previewBubble = preview.querySelector(".color-preview-bubble");
+        const previewIcon = preview.querySelector(".color-preview-icon");
+
+        if (!previewRing || !previewBubble || !previewIcon) return;
+
+        preview.style.setProperty("--preview-color", previewColor);
+        preview.style.setProperty("--preview-rgb", hexToRgb(previewColor));
+        previewRing.style.background = `conic-gradient(${previewColor} 72%, rgba(255,255,255,0.08) 0)`;
+        previewBubble.style.background = `
+            radial-gradient(circle at 30% 24%, rgba(255,255,255,0.24), rgba(255,255,255,0.08) 28%, rgba(255,255,255,0) 50%),
+            ${mode === "create" ? selectedColorDisplay : previewDisplay}
+        `;
+        previewIcon.textContent = previewEmoji;
+    });
+}
+
+
+function createColorButton(color, display = color, label = "Color") {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "color-option";
+    item.dataset.color = color;
+    item.style.background = display;
+    item.style.setProperty("--swatch-rgb", hexToRgb(color));
+    item.setAttribute("aria-label", label);
+
+    item.addEventListener("click", event => {
+        event.stopPropagation();
+        const mode = item.closest(".color-popover")?.dataset.mode || "create";
+        userHasPickedColor = true;
+        colorPickerMode = mode;
+        applySelectedColor(color, { display, remember: true, persist: mode === "edit", mode });
+    });
+
+    return item;
+}
+
+function renderRecentColors() {
+    const recentColors = getRecentColors();
+    document.querySelectorAll(".color-section-recent").forEach(recentSection => {
+        const recentRow = recentSection.querySelector(".recent-colors-row");
+        if (!recentRow) return;
+
+        recentRow.innerHTML = "";
+        recentSection.hidden = recentColors.length === 0;
+
+        recentColors.forEach(color => {
+            const option = getColorOption(color);
+            recentRow.appendChild(createColorButton(color, option?.display || color, "Recent color"));
+        });
+    });
+
+    updateColorSelection();
 }
 
 function createIcons() {
@@ -855,6 +1104,7 @@ function createIcons() {
 
         item.addEventListener("click", () => {
             selEmoji = template.emoji;
+            suggestedColor = getSuggestedColorForTemplate(template);
 
             const currentName = inputName.value.trim();
             const isTemplateName = habitTemplates.some(habit => habit.name.toLowerCase() === currentName.toLowerCase());
@@ -864,34 +1114,86 @@ function createIcons() {
             }
 
             updateIconSelection(item);
+            updateColorSelection();
+
+            if (!userHasPickedColor) {
+                applySelectedColor(suggestedColor);
+            }
         });
 
         iconContainer.appendChild(item);
     });
 }
 
-function createColors() {
-    colorPalette.innerHTML = "";
+function createColors(palette = colorPalette) {
+    const mode = palette.dataset.mode || "create";
+    palette.innerHTML = "";
 
-    colorOptions.forEach(color => {
-        const item = document.createElement("div");
-        item.className = "color-option";
-        item.dataset.color = color;
-        item.style.backgroundColor = color;
+    const preview = document.createElement("div");
+    preview.className = "color-preview";
+    preview.innerHTML = `
+        <div class="color-preview-ring">
+            <div class="color-preview-bubble">
+                <span class="color-preview-icon">${selEmoji}</span>
+            </div>
+        </div>
+        <div class="color-preview-copy">
+            <div class="color-preview-title">Accent</div>
+            <div class="color-preview-subtitle">Selected color</div>
+        </div>
+    `;
+    colorPalette.appendChild(preview);
 
-        item.addEventListener("click", event => {
-            event.stopPropagation();
-            selColor = color;
-            inputName.style.borderColor = color;
-            confirmAddBtn.style.backgroundColor = color;
-            updateColorSelection();
-            colorPalette.classList.remove("show");
+    const recentSection = document.createElement("div");
+    recentSection.className = "color-section color-section-recent";
+    recentSection.innerHTML = `
+        <div class="color-section-label">Recent</div>
+        <div class="color-row recent-colors-row"></div>
+    `;
+    palette.appendChild(recentSection);
+
+    colorGroups.forEach(group => {
+        const section = document.createElement("div");
+        const label = document.createElement("div");
+        const row = document.createElement("div");
+
+        section.className = "color-section";
+        label.className = "color-section-label";
+        label.textContent = group.name;
+        row.className = "color-row";
+
+        group.colors.forEach(color => {
+            row.appendChild(createColorButton(color.value, color.display, color.label));
         });
 
-        colorPalette.appendChild(item);
+        section.appendChild(label);
+        section.appendChild(row);
+        palette.appendChild(section);
     });
 
+    const customSection = document.createElement("div");
+    customSection.className = "color-section custom-color-section";
+    customSection.innerHTML = `
+        <div>
+            <div class="color-section-label">Custom</div>
+            <div class="custom-color-copy">Use the color wheel for a personal accent</div>
+        </div>
+        <button type="button" class="custom-color-btn">Pick</button>
+    `;
+    palette.appendChild(customSection);
+    palette.querySelector(".custom-color-btn").addEventListener("click", event => {
+        event.stopPropagation();
+        colorPickerMode = mode;
+        if (mode === "edit") {
+            editCustomColorInput.click();
+        } else {
+            customColorInput.click();
+        }
+    });
+
+    renderRecentColors();
     updateColorSelection();
+    updateColorPreview();
 }
 
 async function addHabit() {
@@ -902,6 +1204,9 @@ async function addHabit() {
         showToast("Already exists!");
         return;
     }
+
+    saveRecentColor(selColor);
+    renderRecentColors();
 
     const newHabit = {
         id: createId(),
@@ -926,6 +1231,7 @@ async function addHabit() {
         render();
 
         modal.style.display = "none";
+        colorPalette.classList.remove("show");
         inputName.value = "";
 
         console.log("FIREBASE SAVED OK, doc id:", docRef.id);
@@ -939,6 +1245,7 @@ async function addHabit() {
         render();
 
         modal.style.display = "none";
+        colorPalette.classList.remove("show");
         inputName.value = "";
 
         alert("Firebase error: " + error.message);
@@ -991,17 +1298,47 @@ function bindEvents() {
 
     rainbowTrigger.addEventListener("click", event => {
         event.stopPropagation();
+        colorPickerMode = "create";
+        editColorPalette.classList.remove("show");
         colorPalette.classList.toggle("show");
+    });
+
+    customColorInput.addEventListener("input", event => {
+        userHasPickedColor = true;
+        colorPickerMode = "create";
+        applySelectedColor(event.target.value, { remember: true, mode: "create" });
+    });
+
+    editColorTrigger.addEventListener("click", event => {
+        event.stopPropagation();
+        const streak = getActiveStreak();
+        if (!streak) return;
+
+        colorPickerMode = "edit";
+        selColor = streak.color || "#63b3ed";
+        selectedColorDisplay = getColorOption(selColor)?.display || selColor;
+        suggestedColor = selColor;
+        colorPalette.classList.remove("show");
+        updateColorSelection();
+        updateColorPreview();
+        editColorPalette.classList.toggle("show");
+    });
+
+    editCustomColorInput.addEventListener("input", event => {
+        colorPickerMode = "edit";
+        applySelectedColor(event.target.value, { remember: true, persist: true, mode: "edit" });
     });
 
     confirmAddBtn.addEventListener("click", addHabit);
 
     document.getElementById("close-modal").addEventListener("click", () => {
         modal.style.display = "none";
+        colorPalette.classList.remove("show");
     });
 
     document.getElementById("close-cal-modal").addEventListener("click", () => {
         calOverlay.style.display = "none";
+        editColorPalette.classList.remove("show");
     });
 
     document.getElementById("cancel-delete").addEventListener("click", () => {
@@ -1021,12 +1358,22 @@ function bindEvents() {
     });
 
     window.addEventListener("click", event => {
-        if (event.target === modal) modal.style.display = "none";
-        if (event.target === calOverlay) calOverlay.style.display = "none";
+        if (event.target === modal) {
+            modal.style.display = "none";
+            colorPalette.classList.remove("show");
+        }
+        if (event.target === calOverlay) {
+            calOverlay.style.display = "none";
+            editColorPalette.classList.remove("show");
+        }
         if (event.target === deleteOverlay) deleteOverlay.style.display = "none";
 
         if (!colorPalette.contains(event.target) && !rainbowTrigger.contains(event.target)) {
             colorPalette.classList.remove("show");
+        }
+
+        if (!editColorPalette.contains(event.target) && !editColorTrigger.contains(event.target)) {
+            editColorPalette.classList.remove("show");
         }
     });
 }
@@ -1041,7 +1388,8 @@ function loadHabitsFromFirebaseWithTimeout(timeoutMs = 8000) {
 async function init() {
     syncStatus.innerText = "Loading...";
     createIcons();
-    createColors();
+    createColors(colorPalette);
+    createColors(editColorPalette);
     bindEvents();
 
     try {

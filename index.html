@@ -52,7 +52,8 @@
             <input type="text" id="new-streak-name" placeholder="Habit Name" maxlength="20">
             <div class="color-picker-wrapper">
                 <div class="rainbow-btn" id="rainbow-trigger"><span>🎨</span></div>
-                <div class="color-popover" id="color-palette"></div>
+                <input type="color" id="custom-color-input" class="custom-color-input" value="#63b3ed" aria-label="Choose custom color">
+                <div class="color-popover" id="color-palette" data-mode="create"></div>
             </div>
             <button class="modal-btn save-btn" id="confirm-add">Create</button>
             <button class="modal-btn cancel-btn" id="close-modal">Cancel</button>
@@ -62,6 +63,17 @@
     <div id="calendar-overlay" class="overlay">
         <div class="modal">
             <h2 id="cal-title" style="margin-bottom: 8px; font-size: 1.1rem;">Habit</h2>
+            <div class="edit-color-panel">
+                <div class="edit-color-copy">
+                    <span>Color</span>
+                    <small id="edit-color-status">Saved accent</small>
+                </div>
+                <div class="color-picker-wrapper edit-color-wrapper">
+                    <button type="button" class="rainbow-btn edit-color-trigger" id="edit-color-trigger" aria-label="Change habit color"><span>🎨</span></button>
+                    <input type="color" id="edit-custom-color-input" class="custom-color-input" value="#63b3ed" aria-label="Choose habit color">
+                    <div class="color-popover" id="edit-color-palette" data-mode="edit"></div>
+                </div>
+            </div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <button id="prev-month" style="background:none; border:none; color:var(--sky-blue); font-size:1.5rem;">←</button>
                 <span id="cal-month" style="font-weight:800; font-size: 0.9rem;"></span>
