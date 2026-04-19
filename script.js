@@ -64,7 +64,7 @@ const habitTemplates = [
     { emoji: "🧼", name: "Wash dishes" },
     { emoji: "🦷", name: "Floss teeth" },
     { emoji: "🎯", name: "Review goals" },
-    { emoji: "☀️", name: "Get sunlight" },
+    { emoji: "🧠", name: "Daily Brain Exercise" },
     { emoji: "🤝", name: "Help someone" },
     { emoji: "🌙", name: "Evening reflection" },
     { emoji: "💊", name: "Take vitamins" },
@@ -169,13 +169,29 @@ function normalizeHistory(history) {
     return [];
 }
 
+function normalizeHabitIdentity(data) {
+    const name = data.name || "Unnamed habit";
+    const emoji = data.emoji || "📚";
+
+    if (name.toLowerCase() === "get sunlight" && (emoji === "☀️" || emoji === "☀")) {
+        return {
+            name: "Daily Brain Exercise",
+            emoji: "🧠"
+        };
+    }
+
+    return { name, emoji };
+}
+
 function normalizeHabit(data, firebaseDocId) {
+    const identity = normalizeHabitIdentity(data);
+
     return {
         id: data.id || createId(),
-        name: data.name || "Unnamed habit",
+        name: identity.name,
         history: normalizeHistory(data.history),
         color: data.color || "#63b3ed",
-        emoji: data.emoji || "📚",
+        emoji: identity.emoji,
         createdAt: typeof data.createdAt === "number" ? data.createdAt : Date.now(),
         firebaseDocId
     };
@@ -186,6 +202,7 @@ async function loadHabitsFromFirebase() {
         const querySnapshot = await getDocs(collection(db, "habits"));
 
         streaks = querySnapshot.docs.map(docSnap => normalizeHabit(docSnap.data(), docSnap.id));
+        sortHabitsByPerformance();
 
         saveHabits("Loaded from Firebase");
         render();
@@ -246,6 +263,81 @@ function calculateMonthlyRecord(history) {
     }
 
     return maxStreak;
+}
+
+function getCompletedDaysThisMonth(history) {
+    const now = new Date();
+    const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return (history || []).filter(date => date.startsWith(prefix)).length;
+}
+
+function getMonthlyCompletionRate(history) {
+    const today = new Date();
+    const daysPassedThisMonth = today.getDate();
+    return daysPassedThisMonth > 0
+        ? getCompletedDaysThisMonth(history) / daysPassedThisMonth
+        : 0;
+}
+
+function getCurrentStreak(history) {
+    const completedDays = new Set(history || []);
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+
+    if (!completedDays.has(getDStr(cursor))) {
+        cursor.setDate(cursor.getDate() - 1);
+    }
+
+    let count = 0;
+
+    while (completedDays.has(getDStr(cursor))) {
+        count++;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return count;
+}
+
+function getHabitPerformance(streak) {
+    const history = streak.history || [];
+
+    return {
+        completionRate: getMonthlyCompletionRate(history),
+        currentStreak: getCurrentStreak(history),
+        completedThisMonth: getCompletedDaysThisMonth(history)
+    };
+}
+
+function sortHabitsByPerformance() {
+    streaks = streaks
+        .map((streak, index) => ({
+            streak,
+            index,
+            performance: getHabitPerformance(streak)
+        }))
+        .sort((a, b) => {
+            if (b.performance.completionRate !== a.performance.completionRate) {
+                return b.performance.completionRate - a.performance.completionRate;
+            }
+
+            if (b.performance.currentStreak !== a.performance.currentStreak) {
+                return b.performance.currentStreak - a.performance.currentStreak;
+            }
+
+            if (b.performance.completedThisMonth !== a.performance.completedThisMonth) {
+                return b.performance.completedThisMonth - a.performance.completedThisMonth;
+            }
+
+            const aCreatedAt = typeof a.streak.createdAt === "number" ? a.streak.createdAt : Number.MAX_SAFE_INTEGER;
+            const bCreatedAt = typeof b.streak.createdAt === "number" ? b.streak.createdAt : Number.MAX_SAFE_INTEGER;
+
+            if (aCreatedAt !== bCreatedAt) {
+                return aCreatedAt - bCreatedAt;
+            }
+
+            return a.index - b.index;
+        })
+        .map(item => item.streak);
 }
 
 function getRecentWeekDays(history) {
@@ -429,6 +521,7 @@ function getProgressColors(ratio) {
 }
 
 function render() {
+    sortHabitsByPerformance();
     sContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
     const currentMonthLabel = new Date().toLocaleString(undefined, { month: "short" });
@@ -636,6 +729,7 @@ async function toggleDay(id, dStr) {
 
     history.sort();
     streak.history = history;
+    sortHabitsByPerformance();
 
     saveHabits("Saved locally");
     render();
@@ -784,6 +878,7 @@ async function addHabit() {
         };
 
         streaks.push(habitWithFirebaseId);
+        sortHabitsByPerformance();
         saveHabits("Saved to Firebase");
         render();
 
@@ -796,6 +891,7 @@ async function addHabit() {
         console.error("Firestore save error full:", error);
 
         streaks.push(newHabit);
+        sortHabitsByPerformance();
         saveHabits("Saved locally only");
         render();
 
@@ -830,6 +926,7 @@ async function deleteHabit() {
     }
 
     streakToDeleteId = null;
+    sortHabitsByPerformance();
     saveHabits("Saved locally");
     render();
     deleteOverlay.style.display = "none";
