@@ -376,14 +376,33 @@ function startInsightRotation() {
     insightRotationTimer = window.setInterval(updateAllInsights, 4600);
 }
 
-function hexToRgb(hex) {
+function parseHexColor(hex) {
     const clean = hex.replace("#", "");
     const full = clean.length === 3 ? clean.split("").map(ch => ch + ch).join("") : clean;
     const int = parseInt(full, 16);
-    const r = (int >> 16) & 255;
-    const g = (int >> 8) & 255;
-    const b = int & 255;
+    return {
+        r: (int >> 16) & 255,
+        g: (int >> 8) & 255,
+        b: int & 255
+    };
+}
+
+function hexToRgb(hex) {
+    const { r, g, b } = parseHexColor(hex);
     return `${r}, ${g}, ${b}`;
+}
+
+function getReadableTextColor(backgroundColor) {
+    const { r, g, b } = parseHexColor(backgroundColor);
+    const toLinear = value => {
+        const channel = value / 255;
+        return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = (0.2126 * toLinear(r)) + (0.7152 * toLinear(g)) + (0.0722 * toLinear(b));
+    const whiteContrast = (1.05) / (luminance + 0.05);
+    const darkContrast = (luminance + 0.05) / 0.055;
+
+    return darkContrast > whiteContrast ? "#0b1220" : "#ffffff";
 }
 
 function mixChannel(start, end, ratio) {
@@ -421,9 +440,14 @@ function render() {
         const stats = getMonthProgress(streak.history || []);
         const recentWeekDays = getRecentWeekDays(streak.history || []);
         const rotation = (stats.percent / 100) * 360;
-        const streakDots = recentWeekDays.map(day => `
-            <span class="streak-dot-mini${day.completed ? " filled" : ""}${day.isToday ? " is-today" : ""}${streak.id === recentCompletionId && day.isToday && day.completed ? " recent-hit" : ""}" aria-label="${day.dateKey} ${day.completed ? "completed" : "not completed"}">${day.dayNumber}</span>
-        `).join("");
+        const streakDots = recentWeekDays.map(day => {
+            const dotBackground = day.completed ? color : "#030712";
+            const dotTextColor = getReadableTextColor(dotBackground);
+
+            return `
+                <span class="streak-dot-mini${day.completed ? " filled" : ""}${day.isToday ? " is-today" : ""}${streak.id === recentCompletionId && day.isToday && day.completed ? " recent-hit" : ""}" style="--dot-text-color: ${dotTextColor};" aria-label="${day.dateKey} ${day.completed ? "completed" : "not completed"}">${day.dayNumber}</span>
+            `;
+        }).join("");
 
         const card = document.createElement("div");
         card.className = "streak-card";
