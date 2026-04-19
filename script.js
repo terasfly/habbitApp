@@ -412,6 +412,7 @@ function getProgressColors(ratio) {
 function render() {
     sContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
+    const currentMonthLabel = new Date().toLocaleString(undefined, { month: "short" });
 
     streaks.forEach(streak => {
         const isDone = (streak.history || []).includes(todayStr);
@@ -441,7 +442,7 @@ function render() {
                         <div class="streak-emoji">${streak.emoji || "📚"}</div>
                     </div>
                     <div class="streak-count" style="color: ${isDone ? "var(--bubble-done-text, #f8fafc)" : "var(--sky-blue)"}">
-                        ${Math.round(stats.percent)}<span class="percent-sign">%</span>
+                        ${Math.round(stats.percent)}<span class="percent-sign">%</span><span class="month-label">${currentMonthLabel}</span>
                     </div>
                     <div class="streak-dots" aria-label="Last 7 days activity">
                         ${streakDots}

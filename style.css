@@ -394,6 +394,7 @@ h1 {
 }
 
 .icon-badge {
+    --streak-icon-size: clamp(2.45rem, 5.8vw, 2.85rem);
     width: 48%;
     height: 48%;
     border-radius: 50%;
@@ -452,25 +453,57 @@ h1 {
 .streak-emoji {
     position: relative;
     z-index: 2;
-    font-size: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    font-size: var(--streak-icon-size);
     line-height: 1;
     filter:
         drop-shadow(0 0 4px rgba(255,255,255,0.35))
         drop-shadow(0 0 10px rgba(99,179,237,0.22));
-    transform: translateY(1px) scale(1.03);
     transition: filter 0.22s ease, opacity 0.22s ease, transform 0.22s ease;
+}
+
+@media (max-width: 480px) {
+    .icon-badge {
+        --streak-icon-size: clamp(2.65rem, 11vw, 3.05rem);
+    }
 }
 
 .streak-count {
     display: flex;
     align-items: baseline;
     justify-content: center;
-    gap: 1px;
+    gap: 1px 5px;
+    max-width: 100%;
     font-size: 1.62rem;
     font-weight: 900;
     line-height: 1;
     letter-spacing: -0.03em;
+    white-space: nowrap;
     text-shadow: 0 0 16px rgba(var(--habit-rgb), 0.18);
+}
+
+.month-label {
+    flex: 0 0 auto;
+    color: rgba(248, 250, 252, 0.94);
+    font-size: 0.66rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-shadow:
+        0 1px 2px rgba(0,0,0,0.48),
+        0 0 10px rgba(255,255,255,0.10);
+    transform: translateY(-0.03em);
+}
+
+@media (max-width: 480px) {
+    .month-label {
+        font-size: 0.72rem;
+    }
 }
 
 .bubble.done-today .streak-count {
