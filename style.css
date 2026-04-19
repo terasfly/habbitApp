@@ -992,28 +992,73 @@ input[type="text"] {
     justify-content: space-between;
     font-size: 0.65rem;
     font-weight: 800;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     color: var(--sky-blue);
     text-transform: uppercase;
 }
 
-.yearly-progress-bar-bg {
-    background: rgba(255,255,255,0.06);
-    height: 5px;
-    border-radius: 3px;
-    overflow: hidden;
+.yearly-heatmap-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
-.yearly-progress-bar-fill {
-    background: linear-gradient(90deg, var(--sky-blue), #ffafcc);
-    height: 100%;
-    width: 0%;
-    transition: width 1s ease-out;
+.yearly-month-labels {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 9px;
+    column-gap: 3px;
+    min-width: max-content;
+    min-height: 12px;
+    margin-bottom: 4px;
+    color: rgba(226, 232, 240, 0.68);
+    font-size: 0.5rem;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.yearly-month-label {
+    white-space: nowrap;
+}
+
+.yearly-heatmap {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(7, 9px);
+    grid-auto-columns: 9px;
+    gap: 3px;
+    min-width: max-content;
+}
+
+.yearly-heatmap-cell {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    background: rgba(15, 23, 42, 0.92);
+    box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.055),
+        0 1px 2px rgba(0,0,0,0.16);
+}
+
+.yearly-heatmap-cell.completed {
+    background: var(--habit-color);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.22),
+        0 0 9px rgba(var(--habit-rgb), 0.34);
+}
+
+.yearly-heatmap-cell.empty {
+    visibility: hidden;
+    box-shadow: none;
 }
 
 .yearly-count-text {
     font-size: 0.6rem;
-    margin-top: 5px;
+    margin-top: 6px;
     opacity: 0.6;
     text-align: center;
 }

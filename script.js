@@ -756,12 +756,55 @@ function updateYearlyProgress() {
             ? 366
             : 365;
 
+    const historySet = new Set(streak.history || []);
     const count = (streak.history || []).filter(date => date.startsWith(String(currentYear))).length;
     const percent = ((count / daysInYear) * 100).toFixed(1);
+    const heatmap = document.getElementById("yearly-heatmap");
+    const monthLabels = document.getElementById("yearly-month-labels");
+    const firstDay = new Date(currentYear, 0, 1);
+    const leadingEmptyCells = (firstDay.getDay() + 6) % 7;
+    const totalWeekColumns = Math.ceil((leadingEmptyCells + daysInYear) / 7);
+    const monthShortNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     document.getElementById("yearly-percent").innerText = `${percent}%`;
-    document.getElementById("yearly-progress-fill").style.width = `${percent}%`;
     document.getElementById("yearly-count").innerText = `${count} of ${daysInYear} days`;
+
+    heatmap.innerHTML = "";
+    monthLabels.innerHTML = "";
+    heatmap.style.setProperty("--habit-color", streak.color || "#63b3ed");
+    heatmap.style.setProperty("--habit-rgb", hexToRgb(streak.color || "#63b3ed"));
+    monthLabels.style.gridTemplateColumns = `repeat(${totalWeekColumns}, 9px)`;
+
+    for (let i = 0; i < leadingEmptyCells; i++) {
+        const emptyCell = document.createElement("span");
+        emptyCell.className = "yearly-heatmap-cell empty";
+        emptyCell.setAttribute("aria-hidden", "true");
+        heatmap.appendChild(emptyCell);
+    }
+
+    for (let month = 0; month < 12; month++) {
+        const monthStart = new Date(currentYear, month, 1);
+        const dayIndex = Math.floor((monthStart - firstDay) / 86400000);
+        const columnStart = Math.floor((leadingEmptyCells + dayIndex) / 7) + 1;
+        const label = document.createElement("span");
+
+        label.className = "yearly-month-label";
+        label.textContent = monthShortNames[month];
+        label.style.gridColumnStart = columnStart;
+        monthLabels.appendChild(label);
+    }
+
+    for (let day = 1; day <= daysInYear; day++) {
+        const date = new Date(currentYear, 0, day);
+        const dateKey = getDStr(date);
+        const isCompleted = historySet.has(dateKey);
+        const cell = document.createElement("span");
+
+        cell.className = `yearly-heatmap-cell${isCompleted ? " completed" : ""}`;
+        cell.title = `${dateKey}: ${isCompleted ? "completed" : "not completed"}`;
+        cell.setAttribute("aria-label", cell.title);
+        heatmap.appendChild(cell);
+    }
 }
 
 function triggerConfetti() {
