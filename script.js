@@ -1058,10 +1058,12 @@ function createColorButton(color, display = color, label = "Color") {
 
     item.addEventListener("click", event => {
         event.stopPropagation();
-        const mode = item.closest(".color-popover")?.dataset.mode || "create";
+        const palette = item.closest(".color-popover");
+        const mode = palette?.dataset.mode || "create";
         userHasPickedColor = true;
         colorPickerMode = mode;
         applySelectedColor(color, { display, remember: true, persist: mode === "edit", mode });
+        if (palette) hideColorPopover(palette);
     });
 
     return item;
@@ -1130,6 +1132,17 @@ function createIcons() {
 function createColors(palette = colorPalette) {
     const mode = palette.dataset.mode || "create";
     palette.innerHTML = "";
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "color-popover-close";
+    closeButton.setAttribute("aria-label", "Close color picker");
+    closeButton.textContent = "x";
+    closeButton.addEventListener("click", event => {
+        event.stopPropagation();
+        hideColorPopover(palette);
+    });
+    palette.appendChild(closeButton);
 
     const preview = document.createElement("div");
     preview.className = "color-preview";
@@ -1215,38 +1228,23 @@ function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 
+function mountColorPopover(popover) {
+    if (popover && popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+}
+
 function positionColorPopover(popover, trigger) {
     if (!popover || !trigger) return;
 
-    const gap = 10;
-    const edgeGap = 12;
-    const viewport = getViewportBox();
-    const triggerRect = trigger.getBoundingClientRect();
-    const popoverWidth = popover.offsetWidth;
-    const popoverHeight = popover.offsetHeight;
-    const viewportRight = viewport.left + viewport.width;
-    const viewportBottom = viewport.top + viewport.height;
-
-    const halfWidth = popoverWidth / 2;
-    const minLeft = viewport.left + edgeGap + halfWidth;
-    const maxLeft = viewportRight - edgeGap - halfWidth;
-    const triggerCenter = triggerRect.left + (triggerRect.width / 2);
-    const left = maxLeft >= minLeft ? clamp(triggerCenter, minLeft, maxLeft) : viewport.left + (viewport.width / 2);
-
-    const spaceBelow = viewportBottom - triggerRect.bottom;
-    const spaceAbove = triggerRect.top - viewport.top;
-    const openBelow = spaceBelow >= popoverHeight + gap || spaceBelow >= spaceAbove;
-    let top = openBelow ? triggerRect.bottom + gap : triggerRect.top - popoverHeight - gap;
-    const minTop = viewport.top + edgeGap;
-    const maxTop = Math.max(minTop, viewportBottom - edgeGap - popoverHeight);
-    top = clamp(top, minTop, maxTop);
-
-    popover.classList.toggle("open-above", !openBelow);
-    popover.style.setProperty("--popover-left", `${left}px`);
-    popover.style.setProperty("--popover-top", `${top}px`);
+    popover.classList.add("mobile-modal");
+    popover.classList.remove("open-above");
+    popover.style.setProperty("--popover-left", "50%");
+    popover.style.setProperty("--popover-top", "50%");
 }
 
 function showColorPopover(popover, trigger) {
+    mountColorPopover(popover);
     positionColorPopover(popover, trigger);
     popover.classList.add("show");
     requestAnimationFrame(() => positionColorPopover(popover, trigger));
@@ -1459,6 +1457,12 @@ function bindEvents() {
         }
     });
 
+    window.addEventListener("keydown", event => {
+        if (event.key !== "Escape") return;
+        hideColorPopover(colorPalette);
+        hideColorPopover(editColorPalette);
+    });
+
     window.addEventListener("resize", () => {
         if (colorPalette.classList.contains("show")) positionColorPopover(colorPalette, rainbowTrigger);
         if (editColorPalette.classList.contains("show")) positionColorPopover(editColorPalette, editColorTrigger);
@@ -1492,6 +1496,8 @@ async function init() {
     createIcons();
     createColors(colorPalette);
     createColors(editColorPalette);
+    mountColorPopover(colorPalette);
+    mountColorPopover(editColorPalette);
     bindEvents();
 
     try {
