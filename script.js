@@ -28,6 +28,13 @@ let colorSyncTimeout = null;
 let recentCompletionId = null;
 let recentCompletionMessage = null;
 
+function isTouchDevice() {
+    return Boolean(
+        navigator.maxTouchPoints > 0 ||
+        window.matchMedia?.("(hover: none), (pointer: coarse)").matches
+    );
+}
+
 const rewardMessages = [
     "Nice 👌",
     "Good job 🔥",
@@ -650,7 +657,7 @@ function getInsightMessages(streak, isDone) {
         }
     } else {
         if (didYesterday) {
-            messages.push("Do today");
+            messages.push("Start");
         } else {
             messages.push("Keep it going");
         }
@@ -750,6 +757,34 @@ function getProgressColors(ratio) {
     };
 }
 
+function animateMobileRingDot(card, rotation) {
+    if (!isTouchDevice()) return;
+
+    const dotContainer = card.querySelector(".ring-dot-container");
+    if (!dotContainer) return;
+
+    dotContainer.classList.add("mobile-dot-moving");
+    window.setTimeout(() => dotContainer.classList.remove("mobile-dot-moving"), 900);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            dotContainer.style.transform = `rotate(${rotation}deg)`;
+        });
+    });
+}
+
+function pulseMobileRingDot(target) {
+    if (!isTouchDevice()) return;
+
+    const card = target.closest(".streak-card");
+    const dot = card?.querySelector(".ring-dot");
+    if (!dot) return;
+
+    dot.classList.remove("tap-pulse");
+    void dot.offsetWidth;
+    dot.classList.add("tap-pulse");
+    dot.addEventListener("animationend", () => dot.classList.remove("tap-pulse"), { once: true });
+}
+
 function render() {
     sortHabitsByPerformance();
     sContainer.innerHTML = "";
@@ -763,6 +798,7 @@ function render() {
         const stats = getMonthProgress(streak.history || []);
         const recentWeekDays = getRecentWeekDays(streak.history || []);
         const rotation = (stats.percent / 100) * 360;
+        const dotRotation = isTouchDevice() ? 0 : rotation;
         const streakDots = recentWeekDays.map(day => {
             const dotBackground = day.completed ? color : "#030712";
             const dotTextColor = getReadableTextColor(dotBackground);
@@ -780,7 +816,7 @@ function render() {
             <div class="ring-wrapper" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                 <div class="ring-track"></div>
                 <div class="ring-progress" style="background: conic-gradient(${color} ${stats.percent}%, transparent 0)"></div>
-                <div class="ring-dot-container" style="transform: rotate(${rotation}deg)">
+                <div class="ring-dot-container" style="transform: rotate(${dotRotation}deg)">
                     <div class="ring-dot${isDone ? " done-today" : ""}"></div>
                 </div>
                 <div class="bubble${isDone ? " done-today" : ""}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
@@ -828,6 +864,7 @@ function render() {
         }
 
         sContainer.appendChild(card);
+        animateMobileRingDot(card, rotation);
     });
 
     const addCard = document.createElement("div");
@@ -1378,6 +1415,15 @@ async function deleteHabit() {
 }
 
 function bindEvents() {
+    sContainer.addEventListener("pointerdown", event => {
+        const target = event.target.closest('[data-action="open"]');
+        if (!target) return;
+        if (event.pointerType && event.pointerType !== "touch") return;
+        if (!event.pointerType && !isTouchDevice()) return;
+
+        pulseMobileRingDot(target);
+    });
+
     sContainer.addEventListener("click", event => {
         const target = event.target.closest("[data-action]");
         if (!target) return;
