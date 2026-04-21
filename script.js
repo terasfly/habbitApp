@@ -99,41 +99,100 @@ const colorGroups = [
     {
         name: "Cool",
         colors: [
-            { value: "#63b3ed", label: "Sky", display: "#63b3ed" },
-            { value: "#4fd1c5", label: "Cyan", display: "#4fd1c5" },
-            { value: "#818cf8", label: "Blue Violet", display: "linear-gradient(135deg, #60a5fa, #a78bfa)" }
+            { value: "#bae6fd", label: "Frost" },
+            { value: "#7dd3fc", label: "Ice" },
+            { value: "#63b3ed", label: "Sky" },
+            { value: "#60a5fa", label: "Azure" },
+            { value: "#818cf8", label: "Periwinkle" },
+            { value: "#4f46e5", label: "Indigo" }
         ]
     },
     {
         name: "Energy",
         colors: [
-            { value: "#f56565", label: "Red", display: "#f56565" },
-            { value: "#f97316", label: "Orange", display: "#f97316" },
-            { value: "#fb7185", label: "Pink Orange", display: "linear-gradient(135deg, #fb7185, #fb923c)" }
+            { value: "#fecaca", label: "Blush" },
+            { value: "#fca5a5", label: "Rose Red" },
+            { value: "#fb7185", label: "Coral Pink" },
+            { value: "#f87171", label: "Coral" },
+            { value: "#f56565", label: "Flame" },
+            { value: "#dc2626", label: "Ember" }
         ]
     },
     {
         name: "Nature",
         colors: [
-            { value: "#48bb78", label: "Green", display: "#48bb78" },
-            { value: "#34d399", label: "Mint", display: "#34d399" },
-            { value: "#2dd4bf", label: "Green Cyan", display: "linear-gradient(135deg, #22c55e, #2dd4bf)" }
+            { value: "#bbf7d0", label: "Seedling" },
+            { value: "#86efac", label: "Meadow" },
+            { value: "#34d399", label: "Mint" },
+            { value: "#48bb78", label: "Leaf" },
+            { value: "#16a34a", label: "Forest" },
+            { value: "#166534", label: "Pine" }
         ]
     },
     {
         name: "Mind",
         colors: [
-            { value: "#a78bfa", label: "Purple", display: "#a78bfa" },
-            { value: "#f687b3", label: "Pink", display: "#f687b3" },
-            { value: "#c084fc", label: "Purple Pink", display: "linear-gradient(135deg, #a78bfa, #f687b3)" }
+            { value: "#ddd6fe", label: "Mist" },
+            { value: "#c4b5fd", label: "Lavender" },
+            { value: "#c084fc", label: "Orchid" },
+            { value: "#a78bfa", label: "Violet" },
+            { value: "#8b5cf6", label: "Amethyst" },
+            { value: "#5b21b6", label: "Deep Violet" }
         ]
     },
     {
         name: "Focus",
         colors: [
-            { value: "#ecc94b", label: "Gold", display: "#ecc94b" },
-            { value: "#fbd38d", label: "Warm Yellow", display: "#fbd38d" },
-            { value: "#facc15", label: "Sunlit", display: "linear-gradient(135deg, #facc15, #fb923c)" }
+            { value: "#fef3c7", label: "Glow" },
+            { value: "#fde68a", label: "Butter" },
+            { value: "#fbd38d", label: "Warm Gold" },
+            { value: "#ecc94b", label: "Gold" },
+            { value: "#facc15", label: "Sun" },
+            { value: "#ca8a04", label: "Amber" }
+        ]
+    },
+    {
+        name: "Sunset",
+        colors: [
+            { value: "#ffedd5", label: "Peach" },
+            { value: "#fed7aa", label: "Apricot" },
+            { value: "#fdba74", label: "Golden Hour" },
+            { value: "#fb923c", label: "Sunset" },
+            { value: "#f97316", label: "Tangerine" },
+            { value: "#c2410c", label: "Burnt Orange" }
+        ]
+    },
+    {
+        name: "Ocean",
+        colors: [
+            { value: "#ccfbf1", label: "Seafoam" },
+            { value: "#99f6e4", label: "Aqua" },
+            { value: "#5eead4", label: "Tide" },
+            { value: "#2dd4bf", label: "Lagoon" },
+            { value: "#4fd1c5", label: "Teal" },
+            { value: "#0f766e", label: "Deep Teal" }
+        ]
+    },
+    {
+        name: "Berry",
+        colors: [
+            { value: "#fce7f3", label: "Petal" },
+            { value: "#fbcfe8", label: "Candy" },
+            { value: "#f9a8d4", label: "Bubblegum" },
+            { value: "#f687b3", label: "Berry Pink" },
+            { value: "#ec4899", label: "Raspberry" },
+            { value: "#be185d", label: "Wine" }
+        ]
+    },
+    {
+        name: "Earth",
+        colors: [
+            { value: "#f3e8c7", label: "Sand" },
+            { value: "#d8bf83", label: "Clay Light" },
+            { value: "#b58b4c", label: "Clay" },
+            { value: "#a16207", label: "Ochre" },
+            { value: "#7c4a1e", label: "Bark" },
+            { value: "#4a2c17", label: "Umber" }
         ]
     }
 ];

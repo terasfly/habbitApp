@@ -1151,9 +1151,9 @@ input[type="text"] {
 .color-section {
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 9px;
     width: 100%;
-    padding: 9px;
+    padding: 10px;
     border-radius: 16px;
     background: rgba(255,255,255,0.035);
     border: 1px solid rgba(255,255,255,0.055);
@@ -1173,15 +1173,15 @@ input[type="text"] {
 
 .color-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 10px;
     width: 100%;
 }
 
 .color-option {
     width: 100%;
     min-width: 0;
-    min-height: 38px;
+    min-height: 50px;
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.18);
     cursor: pointer;
@@ -1265,11 +1265,12 @@ input[type="text"] {
     }
 
     .color-row {
-        gap: 7px;
+        grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
+        gap: 8px;
     }
 
     .color-option {
-        min-height: 36px;
+        min-height: 46px;
     }
 }
 
