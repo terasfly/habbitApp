@@ -1224,14 +1224,6 @@ input[type="text"] {
     pointer-events: none;
 }
 
-.custom-color-section {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding-top: 2px;
-}
-
 .edit-color-panel {
     display: flex;
     align-items: center;
@@ -1276,38 +1268,6 @@ input[type="text"] {
     width: 38px;
     height: 38px;
     border-width: 1px;
-}
-
-.custom-color-copy {
-    margin-top: 3px;
-    color: rgba(226, 232, 240, 0.56);
-    font-size: 0.58rem;
-    font-weight: 800;
-}
-
-.custom-color-btn {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    min-width: 58px;
-    min-height: 36px;
-    overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.16);
-    border-radius: 999px;
-    color: #f8fafc;
-    background: rgba(255,255,255,0.08);
-    font-size: 0.68rem;
-    font-weight: 900;
-    cursor: pointer;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 8px 16px rgba(0,0,0,0.18);
-    transition: transform 0.18s ease, background 0.18s ease;
-}
-
-.custom-color-btn:active {
-    transform: scale(0.96);
-    background: rgba(255,255,255,0.12);
 }
 
 @media (max-width: 360px) {

@@ -1186,55 +1186,14 @@ function createColors(palette = colorPalette) {
         palette.appendChild(section);
     });
 
-    const customSection = document.createElement("div");
-    customSection.className = "color-section custom-color-section";
-    customSection.innerHTML = `
-        <div>
-            <div class="color-section-label">Custom</div>
-            <div class="custom-color-copy">Use the color wheel for a personal accent</div>
-        </div>
-        <button type="button" class="custom-color-btn">Pick</button>
-    `;
-    palette.appendChild(customSection);
-
-    const customColorTrigger = customSection.querySelector(".custom-color-btn");
-    const nativeColorInput = mode === "edit" ? editCustomColorInput : customColorInput;
-    mountNativeColorInput(nativeColorInput);
-
-    customColorTrigger.addEventListener("click", event => {
-        event.stopPropagation();
-        openNativeColorInput(nativeColorInput, mode);
-    });
-
     renderRecentColors();
     updateColorSelection();
     updateColorPreview();
 }
 
-function getViewportBox() {
-    const viewport = window.visualViewport;
-
-    return {
-        left: viewport?.offsetLeft || 0,
-        top: viewport?.offsetTop || 0,
-        width: viewport?.width || window.innerWidth,
-        height: viewport?.height || window.innerHeight
-    };
-}
-
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-}
-
 function mountColorPopover(popover) {
     if (popover && popover.parentElement !== document.body) {
         document.body.appendChild(popover);
-    }
-}
-
-function mountNativeColorInput(input) {
-    if (input && input.parentElement !== document.body) {
-        document.body.appendChild(input);
     }
 }
 
@@ -1270,41 +1229,6 @@ function toggleColorPopover(popover, trigger) {
     }
 
     showColorPopover(popover, trigger);
-}
-
-function positionNativeColorInput(input) {
-    if (!input) return;
-
-    mountNativeColorInput(input);
-
-    const viewport = getViewportBox();
-    const appShell = document.getElementById("app-shell");
-    const appRect = appShell?.getBoundingClientRect();
-    const centerX = appRect
-        ? appRect.left + (appRect.width / 2)
-        : viewport.left + (viewport.width / 2);
-    const centerY = viewport.top + (viewport.height / 2);
-
-    input.style.left = `${centerX}px`;
-    input.style.top = `${centerY}px`;
-}
-
-function openNativeColorInput(input, mode) {
-    if (!input) return;
-
-    colorPickerMode = mode;
-    positionNativeColorInput(input);
-
-    try {
-        if (typeof input.showPicker === "function") {
-            input.showPicker();
-            return;
-        }
-    } catch (error) {
-        console.warn("Native color picker showPicker failed, falling back to click:", error);
-    }
-
-    input.click();
 }
 
 async function addHabit() {
