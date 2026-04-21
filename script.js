@@ -636,21 +636,21 @@ function getInsightMessages(streak, isDone) {
     const messages = [];
 
     if (isDone) {
-        messages.push("🔥 Done today 🔥");
+        messages.push("Done");
         if (week.days > 0) {
             if (week.count === week.days) {
-                messages.push("Perfect week");
+                messages.push("Done - Perfect week");
             } else if (week.count > 0) {
-                messages.push(`Week ${week.count}/${week.days}`);
+                messages.push(`Done - Week ${week.count}/${week.days}`);
             } else {
-                messages.push("On track");
+                messages.push("Done - On track");
             }
         } else {
-            messages.push("Great job");
+            messages.push("Done - Great job");
         }
     } else {
         if (didYesterday) {
-            messages.push("❄️ Do today ❄️");
+            messages.push("Do today");
         } else {
             messages.push("Keep it going");
         }
@@ -798,7 +798,7 @@ function render() {
                     <div class="best-label">🔥 ${stats.best}</div>
                 </div>
             </div>
-            <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="0">
+            <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${isDone ? 1 : 0};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="0">
                 <div class="streak-name">${streak.name}</div>
                 <div class="streak-insight">${getInsightMessages(streak, isDone)[0]}</div>
             </div>

@@ -280,6 +280,33 @@ h1 {
     transition: opacity 0.22s ease;
 }
 
+@media (hover: hover) and (pointer: fine) {
+    .bubble:not(.add-bubble):hover {
+        transform: translateY(-3px) scale(1.015);
+        border-color: rgba(255,255,255,0.12);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            inset 0 -16px 28px rgba(0, 0, 0, 0.24),
+            0 16px 30px rgba(0, 0, 0, 0.24),
+            0 0 22px rgba(var(--habit-rgb), 0.12);
+    }
+
+    .streak-identity:hover {
+        transform: translateY(-2px);
+        box-shadow:
+            0 9px 18px rgba(0,0,0,0.38),
+            0 0 16px rgba(var(--habit-rgb), 0.12);
+    }
+
+    .streak-identity.done-today:hover {
+        transform: translateY(-2px) scale(1.02);
+    }
+}
+
+.bubble:not(.add-bubble):active {
+    transform: scale(0.97);
+}
+
 .bubble.done-today {
     --bubble-done-text: #f8fafc;
     background:
@@ -347,13 +374,43 @@ h1 {
 }
 
 .streak-identity.done-today {
-    background: rgba(var(--habit-rgb), 0.08);
-    border-color: rgba(var(--habit-rgb), 0.22);
-    box-shadow: 0 14px 28px rgba(var(--habit-rgb), 0.08);
+    background:
+        radial-gradient(circle at 50% 0%, rgba(255,255,255,0.12), rgba(255,255,255,0) 54%),
+        rgba(var(--habit-rgb), 0.11);
+    border-color: rgba(var(--habit-rgb), 0.36);
+    box-shadow:
+        0 14px 28px rgba(var(--habit-rgb), 0.10),
+        0 0 22px rgba(var(--habit-rgb), 0.18);
+    transform: scale(1.02);
 }
 
 .streak-identity.done-today .streak-name {
     color: #f8fafc;
+}
+
+.streak-identity.done-today .streak-insight {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    color: #fdba74;
+    text-shadow: 0 0 12px rgba(251, 146, 60, 0.24);
+}
+
+.streak-identity.done-today .streak-insight::before {
+    content: "✓";
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.54rem;
+    line-height: 1;
+    background: rgba(255,255,255,0.16);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.22),
+        0 0 12px rgba(var(--habit-rgb), 0.26);
 }
 
 .bubble.recent-complete {
@@ -707,6 +764,7 @@ h1 {
 }
 
 .streak-identity {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -720,11 +778,36 @@ h1 {
     width: 100%;
     max-width: 200px;
     min-height: 44px;
-    transition: all 0.2s ease;
+    overflow: hidden;
+    isolation: isolate;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     cursor: pointer;
 }
 
+.streak-identity::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(var(--habit-rgb), 0.24), rgba(var(--habit-rgb), 0.08));
+    transform: scaleX(var(--today-progress, 0));
+    transform-origin: left center;
+    opacity: 0.78;
+    pointer-events: none;
+    transition: transform 0.28s ease, opacity 0.2s ease;
+    z-index: 0;
+}
+
+.streak-identity:active {
+    transform: scale(0.98);
+}
+
+.streak-identity.done-today:active {
+    transform: scale(0.99);
+}
+
 .streak-name {
+    position: relative;
+    z-index: 1;
     font-size: 0.72rem;
     font-weight: 900;
     color: #ffffff;
@@ -737,6 +820,8 @@ h1 {
 }
 
 .streak-insight {
+    position: relative;
+    z-index: 1;
     margin-top: 4px;
     font-size: 0.62rem;
     font-weight: 800;
