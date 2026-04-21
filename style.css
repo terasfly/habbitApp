@@ -947,12 +947,16 @@ input[type="text"] {
     position: fixed;
     top: 50%;
     left: 50%;
-    width: 44px;
+    width: min(260px, calc(100vw - 32px));
     height: 44px;
     transform: translate(-50%, -50%);
+    margin: 0;
+    padding: 0;
+    border: 0;
     opacity: 0;
     pointer-events: none;
-    z-index: 1199;
+    cursor: pointer;
+    z-index: 2600;
 }
 
 .rainbow-btn {
@@ -1282,9 +1286,14 @@ input[type="text"] {
 }
 
 .custom-color-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex: 0 0 auto;
     min-width: 58px;
     min-height: 36px;
+    overflow: hidden;
     border: 1px solid rgba(255,255,255,0.16);
     border-radius: 999px;
     color: #f8fafc;

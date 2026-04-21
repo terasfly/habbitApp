@@ -1196,16 +1196,14 @@ function createColors(palette = colorPalette) {
         <button type="button" class="custom-color-btn">Pick</button>
     `;
     palette.appendChild(customSection);
-    palette.querySelector(".custom-color-btn").addEventListener("click", event => {
+
+    const customColorTrigger = customSection.querySelector(".custom-color-btn");
+    const nativeColorInput = mode === "edit" ? editCustomColorInput : customColorInput;
+    mountNativeColorInput(nativeColorInput);
+
+    customColorTrigger.addEventListener("click", event => {
         event.stopPropagation();
-        colorPickerMode = mode;
-        if (mode === "edit") {
-            positionNativeColorInput(editCustomColorInput, event.currentTarget);
-            editCustomColorInput.click();
-        } else {
-            positionNativeColorInput(customColorInput, event.currentTarget);
-            customColorInput.click();
-        }
+        openNativeColorInput(nativeColorInput, mode);
     });
 
     renderRecentColors();
@@ -1231,6 +1229,12 @@ function clamp(value, min, max) {
 function mountColorPopover(popover) {
     if (popover && popover.parentElement !== document.body) {
         document.body.appendChild(popover);
+    }
+}
+
+function mountNativeColorInput(input) {
+    if (input && input.parentElement !== document.body) {
+        document.body.appendChild(input);
     }
 }
 
@@ -1268,12 +1272,39 @@ function toggleColorPopover(popover, trigger) {
     showColorPopover(popover, trigger);
 }
 
-function positionNativeColorInput(input, trigger) {
-    if (!input || !trigger) return;
+function positionNativeColorInput(input) {
+    if (!input) return;
 
-    const rect = trigger.getBoundingClientRect();
-    input.style.left = `${rect.left + (rect.width / 2)}px`;
-    input.style.top = `${rect.top + (rect.height / 2)}px`;
+    mountNativeColorInput(input);
+
+    const viewport = getViewportBox();
+    const appShell = document.getElementById("app-shell");
+    const appRect = appShell?.getBoundingClientRect();
+    const centerX = appRect
+        ? appRect.left + (appRect.width / 2)
+        : viewport.left + (viewport.width / 2);
+    const centerY = viewport.top + (viewport.height / 2);
+
+    input.style.left = `${centerX}px`;
+    input.style.top = `${centerY}px`;
+}
+
+function openNativeColorInput(input, mode) {
+    if (!input) return;
+
+    colorPickerMode = mode;
+    positionNativeColorInput(input);
+
+    try {
+        if (typeof input.showPicker === "function") {
+            input.showPicker();
+            return;
+        }
+    } catch (error) {
+        console.warn("Native color picker showPicker failed, falling back to click:", error);
+    }
+
+    input.click();
 }
 
 async function addHabit() {
