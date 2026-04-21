@@ -745,6 +745,8 @@ function render() {
             </div>
         `;
 
+        card.querySelector(".streak-count")?.after(card.querySelector(".best-label"));
+
         insightMessagesById[streak.id] = getInsightMessages(streak, isDone);
 
         if (streak.id === recentCompletionId) {
@@ -1142,7 +1144,7 @@ function createColors(palette = colorPalette) {
             <div class="color-preview-subtitle">Selected color</div>
         </div>
     `;
-    colorPalette.appendChild(preview);
+    palette.appendChild(preview);
 
     const recentSection = document.createElement("div");
     recentSection.className = "color-section color-section-recent";
@@ -1185,8 +1187,10 @@ function createColors(palette = colorPalette) {
         event.stopPropagation();
         colorPickerMode = mode;
         if (mode === "edit") {
+            positionNativeColorInput(editCustomColorInput, event.currentTarget);
             editCustomColorInput.click();
         } else {
+            positionNativeColorInput(customColorInput, event.currentTarget);
             customColorInput.click();
         }
     });
@@ -1194,6 +1198,84 @@ function createColors(palette = colorPalette) {
     renderRecentColors();
     updateColorSelection();
     updateColorPreview();
+}
+
+function getViewportBox() {
+    const viewport = window.visualViewport;
+
+    return {
+        left: viewport?.offsetLeft || 0,
+        top: viewport?.offsetTop || 0,
+        width: viewport?.width || window.innerWidth,
+        height: viewport?.height || window.innerHeight
+    };
+}
+
+function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
+
+function positionColorPopover(popover, trigger) {
+    if (!popover || !trigger) return;
+
+    const gap = 10;
+    const edgeGap = 12;
+    const viewport = getViewportBox();
+    const triggerRect = trigger.getBoundingClientRect();
+    const popoverWidth = popover.offsetWidth;
+    const popoverHeight = popover.offsetHeight;
+    const viewportRight = viewport.left + viewport.width;
+    const viewportBottom = viewport.top + viewport.height;
+
+    const halfWidth = popoverWidth / 2;
+    const minLeft = viewport.left + edgeGap + halfWidth;
+    const maxLeft = viewportRight - edgeGap - halfWidth;
+    const triggerCenter = triggerRect.left + (triggerRect.width / 2);
+    const left = maxLeft >= minLeft ? clamp(triggerCenter, minLeft, maxLeft) : viewport.left + (viewport.width / 2);
+
+    const spaceBelow = viewportBottom - triggerRect.bottom;
+    const spaceAbove = triggerRect.top - viewport.top;
+    const openBelow = spaceBelow >= popoverHeight + gap || spaceBelow >= spaceAbove;
+    let top = openBelow ? triggerRect.bottom + gap : triggerRect.top - popoverHeight - gap;
+    const minTop = viewport.top + edgeGap;
+    const maxTop = Math.max(minTop, viewportBottom - edgeGap - popoverHeight);
+    top = clamp(top, minTop, maxTop);
+
+    popover.classList.toggle("open-above", !openBelow);
+    popover.style.setProperty("--popover-left", `${left}px`);
+    popover.style.setProperty("--popover-top", `${top}px`);
+}
+
+function showColorPopover(popover, trigger) {
+    positionColorPopover(popover, trigger);
+    popover.classList.add("show");
+    requestAnimationFrame(() => positionColorPopover(popover, trigger));
+}
+
+function hideColorPopover(popover) {
+    popover.classList.remove("show");
+    window.setTimeout(() => {
+        if (!popover.classList.contains("show")) {
+            popover.classList.remove("open-above");
+        }
+    }, 240);
+}
+
+function toggleColorPopover(popover, trigger) {
+    if (popover.classList.contains("show")) {
+        hideColorPopover(popover);
+        return;
+    }
+
+    showColorPopover(popover, trigger);
+}
+
+function positionNativeColorInput(input, trigger) {
+    if (!input || !trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    input.style.left = `${rect.left + (rect.width / 2)}px`;
+    input.style.top = `${rect.top + (rect.height / 2)}px`;
 }
 
 async function addHabit() {
@@ -1231,7 +1313,7 @@ async function addHabit() {
         render();
 
         modal.style.display = "none";
-        colorPalette.classList.remove("show");
+        hideColorPopover(colorPalette);
         inputName.value = "";
 
         console.log("FIREBASE SAVED OK, doc id:", docRef.id);
@@ -1245,7 +1327,7 @@ async function addHabit() {
         render();
 
         modal.style.display = "none";
-        colorPalette.classList.remove("show");
+        hideColorPopover(colorPalette);
         inputName.value = "";
 
         alert("Firebase error: " + error.message);
@@ -1299,8 +1381,8 @@ function bindEvents() {
     rainbowTrigger.addEventListener("click", event => {
         event.stopPropagation();
         colorPickerMode = "create";
-        editColorPalette.classList.remove("show");
-        colorPalette.classList.toggle("show");
+        hideColorPopover(editColorPalette);
+        toggleColorPopover(colorPalette, rainbowTrigger);
     });
 
     customColorInput.addEventListener("input", event => {
@@ -1318,10 +1400,10 @@ function bindEvents() {
         selColor = streak.color || "#63b3ed";
         selectedColorDisplay = getColorOption(selColor)?.display || selColor;
         suggestedColor = selColor;
-        colorPalette.classList.remove("show");
+        hideColorPopover(colorPalette);
         updateColorSelection();
         updateColorPreview();
-        editColorPalette.classList.toggle("show");
+        toggleColorPopover(editColorPalette, editColorTrigger);
     });
 
     editCustomColorInput.addEventListener("input", event => {
@@ -1333,12 +1415,12 @@ function bindEvents() {
 
     document.getElementById("close-modal").addEventListener("click", () => {
         modal.style.display = "none";
-        colorPalette.classList.remove("show");
+        hideColorPopover(colorPalette);
     });
 
     document.getElementById("close-cal-modal").addEventListener("click", () => {
         calOverlay.style.display = "none";
-        editColorPalette.classList.remove("show");
+        hideColorPopover(editColorPalette);
     });
 
     document.getElementById("cancel-delete").addEventListener("click", () => {
@@ -1360,21 +1442,41 @@ function bindEvents() {
     window.addEventListener("click", event => {
         if (event.target === modal) {
             modal.style.display = "none";
-            colorPalette.classList.remove("show");
+            hideColorPopover(colorPalette);
         }
         if (event.target === calOverlay) {
             calOverlay.style.display = "none";
-            editColorPalette.classList.remove("show");
+            hideColorPopover(editColorPalette);
         }
         if (event.target === deleteOverlay) deleteOverlay.style.display = "none";
 
         if (!colorPalette.contains(event.target) && !rainbowTrigger.contains(event.target)) {
-            colorPalette.classList.remove("show");
+            hideColorPopover(colorPalette);
         }
 
         if (!editColorPalette.contains(event.target) && !editColorTrigger.contains(event.target)) {
-            editColorPalette.classList.remove("show");
+            hideColorPopover(editColorPalette);
         }
+    });
+
+    window.addEventListener("resize", () => {
+        if (colorPalette.classList.contains("show")) positionColorPopover(colorPalette, rainbowTrigger);
+        if (editColorPalette.classList.contains("show")) positionColorPopover(editColorPalette, editColorTrigger);
+    });
+
+    window.addEventListener("scroll", () => {
+        if (colorPalette.classList.contains("show")) positionColorPopover(colorPalette, rainbowTrigger);
+        if (editColorPalette.classList.contains("show")) positionColorPopover(editColorPalette, editColorTrigger);
+    }, { passive: true });
+
+    window.visualViewport?.addEventListener("resize", () => {
+        if (colorPalette.classList.contains("show")) positionColorPopover(colorPalette, rainbowTrigger);
+        if (editColorPalette.classList.contains("show")) positionColorPopover(editColorPalette, editColorTrigger);
+    });
+
+    window.visualViewport?.addEventListener("scroll", () => {
+        if (colorPalette.classList.contains("show")) positionColorPopover(colorPalette, rainbowTrigger);
+        if (editColorPalette.classList.contains("show")) positionColorPopover(editColorPalette, editColorTrigger);
     });
 }
 
