@@ -17,7 +17,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script type="module" src="script.js"></script>
+    <script type="module" src="script.js?v=auth-4"></script>
 </head>
 <body>
 
@@ -26,11 +26,35 @@
         <div style="font-weight: 800; color: var(--sky-blue); font-size: 0.85rem;">Loading...</div>
     </div>
 
-    <div id="app-shell" class="container">
+    <section id="auth-screen" class="auth-screen" hidden>
+        <form id="auth-form" class="auth-panel">
+            <h1>My Habits</h1>
+            <div class="auth-mode-tabs" role="tablist" aria-label="Authentication mode">
+                <button type="button" class="auth-mode-btn active" data-auth-mode="login">Log in</button>
+                <button type="button" class="auth-mode-btn" data-auth-mode="signup">Sign up</button>
+            </div>
+            <input type="text" id="auth-name" placeholder="Name" autocomplete="name" maxlength="40" hidden>
+            <input type="email" id="auth-email" placeholder="Email" autocomplete="email" required>
+            <div class="auth-password-field">
+                <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" minlength="6" required>
+                <button type="button" class="password-toggle" data-password-toggle="auth-password" data-password-label="password" aria-label="Show password">Show</button>
+            </div>
+            <div class="auth-password-field" id="auth-confirm-wrap" hidden>
+                <input type="password" id="auth-confirm-password" placeholder="Confirm password" autocomplete="new-password" minlength="6">
+                <button type="button" class="password-toggle" data-password-toggle="auth-confirm-password" data-password-label="confirm password" aria-label="Show confirm password">Show</button>
+            </div>
+            <div id="auth-message" class="auth-message" role="status" aria-live="polite"></div>
+            <button type="submit" id="auth-submit" class="modal-btn save-btn">Log in</button>
+        </form>
+    </section>
+
+    <div id="app-shell" class="container" hidden>
         <header><h1>My Habits</h1></header>
         <div class="session-row">
-            <div class="sync-status" id="sync-status">Local Storage</div>
+            <div class="session-user" id="session-user"></div>
+            <button type="button" class="sign-out-btn" id="sign-out-btn">Sign out</button>
         </div>
+        <div class="sync-status" id="sync-status"></div>
 
         <div class="progress-container">
             <div class="progress-text">

@@ -1,11 +1,17 @@
-import { app, db } from "./firebase.js";
+import { app, auth, db } from "./firebase.js";
 import {
-    collection,
-    addDoc,
+    createUserWithEmailAndPassword,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    signOut,
+    updateProfile
+} from "https://www.gstatic.com/firebasejs/12.2.0/firebase-auth.js";
+import {
     deleteDoc,
     doc,
+    collection,
     getDocs,
-    updateDoc
+    setDoc
 } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-firestore.js";
 
 console.log("Firebase connected:", app);
@@ -27,6 +33,9 @@ let colorPickerMode = "create";
 let colorSyncTimeout = null;
 let recentCompletionId = null;
 let recentCompletionMessage = null;
+let currentUser = null;
+let authMode = "login";
+let appEventsBound = false;
 
 function isTouchDevice() {
     return Boolean(
@@ -231,6 +240,18 @@ const editColorStatus = document.getElementById("edit-color-status");
 const confirmAddBtn = document.getElementById("confirm-add");
 const syncStatus = document.getElementById("sync-status");
 const loadingScreen = document.getElementById("loading-screen");
+const appShell = document.getElementById("app-shell");
+const authScreen = document.getElementById("auth-screen");
+const authForm = document.getElementById("auth-form");
+const authName = document.getElementById("auth-name");
+const authEmail = document.getElementById("auth-email");
+const authPassword = document.getElementById("auth-password");
+const authConfirmWrap = document.getElementById("auth-confirm-wrap");
+const authConfirmPassword = document.getElementById("auth-confirm-password");
+const authMessage = document.getElementById("auth-message");
+const authSubmit = document.getElementById("auth-submit");
+const sessionUser = document.getElementById("session-user");
+const signOutBtn = document.getElementById("sign-out-btn");
 
 function showToast(msg) {
     toast.innerText = msg;
@@ -250,9 +271,13 @@ function getColorOption(color) {
     return getAllColorOptions().find(option => option.value.toLowerCase() === color.toLowerCase());
 }
 
+function getRecentColorsKey(uid = currentUser?.uid) {
+    return uid ? `${RECENT_COLORS_KEY}:${uid}` : RECENT_COLORS_KEY;
+}
+
 function getRecentColors() {
     try {
-        const parsed = JSON.parse(localStorage.getItem(RECENT_COLORS_KEY) || "[]");
+        const parsed = JSON.parse(localStorage.getItem(getRecentColorsKey()) || "[]");
         return Array.isArray(parsed)
             ? parsed.filter(color => typeof color === "string" && color.startsWith("#")).slice(0, 5)
             : [];
@@ -263,7 +288,7 @@ function getRecentColors() {
 
 function saveRecentColor(color) {
     const recent = [color, ...getRecentColors().filter(item => item.toLowerCase() !== color.toLowerCase())].slice(0, 5);
-    localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(recent));
+    localStorage.setItem(getRecentColorsKey(), JSON.stringify(recent));
 }
 
 function getSuggestedColorForTemplate(template) {
@@ -296,16 +321,24 @@ function scheduleHabitColorSync(streak) {
         window.clearTimeout(colorSyncTimeout);
     }
 
+    const user = currentUser;
+
     colorSyncTimeout = window.setTimeout(async () => {
+        if (!user || currentUser?.uid !== user.uid) return;
+
         try {
-            await syncHabitToFirebase(streak);
-            saveHabits("Saved to Firebase");
-            if (editColorStatus) editColorStatus.textContent = "Saved accent";
+            await syncHabitToFirebase(streak, user);
+            if (currentUser?.uid === user.uid) {
+                saveHabits("Saved to Firebase");
+                if (editColorStatus) editColorStatus.textContent = "Saved accent";
+            }
         } catch (error) {
             console.error("Firebase color sync error:", error);
-            saveHabits("Saved locally only");
-            if (editColorStatus) editColorStatus.textContent = "Saved locally";
-            showToast("Firebase sync failed");
+            if (currentUser?.uid === user.uid) {
+                saveHabits("Saved locally only");
+                if (editColorStatus) editColorStatus.textContent = "Saved locally";
+                showToast("Firebase sync failed");
+            }
         }
     }, 350);
 }
@@ -368,14 +401,217 @@ function createId() {
     return `habit-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function requireCurrentUser() {
+    if (!currentUser) {
+        throw new Error("You must be signed in to access habits.");
+    }
+
+    return currentUser;
+}
+
+function getHabitsStorageKey(uid = currentUser?.uid) {
+    return uid ? `${STORAGE_KEY}:${uid}` : STORAGE_KEY;
+}
+
+function getUserDocRef(user = requireCurrentUser()) {
+    return doc(db, "users", user.uid);
+}
+
+function getUserHabitsCollection(user = requireCurrentUser()) {
+    return collection(db, "users", user.uid, "habits");
+}
+
+function getUserHabitDocRef(streak, user = requireCurrentUser()) {
+    const habitId = streak.firebaseDocId || streak.id;
+
+    if (!habitId) {
+        throw new Error("Habit is missing an id.");
+    }
+
+    return doc(db, "users", user.uid, "habits", habitId);
+}
+
+function setLoadingVisible(isVisible) {
+    loadingScreen.style.display = isVisible ? "flex" : "none";
+}
+
+function closeAllOverlays() {
+    modal.style.display = "none";
+    calOverlay.style.display = "none";
+    deleteOverlay.style.display = "none";
+    hideColorPopover(colorPalette);
+    hideColorPopover(editColorPalette);
+}
+
+function resetHabitState() {
+    streaks = [];
+    activeId = null;
+    streakToDeleteId = null;
+    recentCompletionId = null;
+    recentCompletionMessage = null;
+    sContainer.innerHTML = "";
+    document.getElementById("progress-text").innerText = "0/0";
+    document.getElementById("progress-fill").style.width = "0%";
+    renderRecentColors();
+}
+
+function setAuthMode(mode) {
+    authMode = mode;
+    authName.hidden = mode !== "signup";
+    authName.required = mode === "signup";
+    authConfirmWrap.hidden = mode !== "signup";
+    authConfirmPassword.required = mode === "signup";
+    authConfirmPassword.value = "";
+    authConfirmPassword.type = "password";
+    authPassword.autocomplete = mode === "signup" ? "new-password" : "current-password";
+    authPassword.type = "password";
+    authSubmit.textContent = mode === "signup" ? "Sign up" : "Log in";
+    authMessage.textContent = "";
+    updatePasswordToggleLabels();
+
+    document.querySelectorAll("[data-auth-mode]").forEach(button => {
+        button.classList.toggle("active", button.dataset.authMode === mode);
+    });
+}
+
+function setAuthBusy(isBusy) {
+    authSubmit.disabled = isBusy;
+    authEmail.disabled = isBusy;
+    authPassword.disabled = isBusy;
+    authConfirmPassword.disabled = isBusy;
+    authName.disabled = isBusy;
+}
+
+function updatePasswordToggleLabels() {
+    document.querySelectorAll("[data-password-toggle]").forEach(button => {
+        const input = document.getElementById(button.dataset.passwordToggle);
+        const isVisible = input?.type === "text";
+        const label = button.dataset.passwordLabel || "password";
+
+        button.textContent = isVisible ? "Hide" : "Show";
+        button.setAttribute("aria-label", `${isVisible ? "Hide" : "Show"} ${label}`);
+        button.setAttribute("aria-pressed", String(isVisible));
+    });
+}
+
+function togglePasswordVisibility(targetId) {
+    const input = document.getElementById(targetId);
+    if (!input) return;
+
+    input.type = input.type === "password" ? "text" : "password";
+    updatePasswordToggleLabels();
+}
+
+function validateSignupPasswords(password, confirmPassword) {
+    if (!password) return "Enter a password.";
+    if (!confirmPassword) return "Confirm your password.";
+    if (password !== confirmPassword) return "Passwords do not match";
+    return "";
+}
+
+function getAuthErrorMessage(error) {
+    const code = error?.code || "";
+    const detail = code ? ` (${code})` : "";
+
+    if (code.includes("email-already-in-use")) return `This email already has an account${detail}.`;
+    if (code.includes("invalid-email")) return `Enter a valid email address${detail}.`;
+    if (code.includes("weak-password")) return `Use at least 6 password characters${detail}.`;
+    if (code.includes("operation-not-allowed") || code.includes("admin-restricted-operation")) {
+        return `Enable Email/Password sign-in in Firebase Auth${detail}.`;
+    }
+    if (code.includes("configuration-not-found")) return `Enable Firebase Authentication for this project${detail}.`;
+    if (code.includes("unauthorized-domain")) return `Add this domain in Firebase Auth authorized domains${detail}.`;
+    if (code.includes("network-request-failed")) return `Check your internet connection${detail}.`;
+    if (code.includes("too-many-requests")) return `Too many attempts. Try again later${detail}.`;
+    if (code.includes("permission-denied")) return `Account created, but Firestore rules need updating${detail}.`;
+    if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found")) {
+        return `Check your email and password${detail}.`;
+    }
+
+    return error?.message || `Authentication failed${detail}.`;
+}
+
+async function saveUserProfile(user, extra = {}) {
+    const now = Date.now();
+    const displayName = extra.displayName ?? user.displayName ?? "";
+
+    await setDoc(getUserDocRef(user), {
+        uid: user.uid,
+        email: user.email || "",
+        displayName,
+        ...extra,
+        updatedAt: now
+    }, { merge: true });
+}
+
+async function handleAuthSubmit(event) {
+    event.preventDefault();
+
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    const confirmPassword = authConfirmPassword.value;
+    const name = authName.value.trim();
+
+    if (authMode === "signup" && !name) {
+        authMessage.textContent = "Enter a name.";
+        return;
+    }
+
+    if (authMode === "signup") {
+        const passwordError = validateSignupPasswords(password, confirmPassword);
+        if (passwordError) {
+            authMessage.textContent = passwordError;
+            return;
+        }
+    }
+
+    setAuthBusy(true);
+    authMessage.textContent = "";
+
+    try {
+        if (authMode === "signup") {
+            const credential = await createUserWithEmailAndPassword(auth, email, password);
+            await updateProfile(credential.user, { displayName: name });
+
+            try {
+                await saveUserProfile(credential.user, {
+                    displayName: name,
+                    createdAt: Date.now()
+                });
+            } catch (profileError) {
+                console.warn("User profile write failed:", profileError);
+            }
+        } else {
+            await signInWithEmailAndPassword(auth, email, password);
+        }
+    } catch (error) {
+        console.error("Auth error:", error);
+        authMessage.textContent = getAuthErrorMessage(error);
+    } finally {
+        setAuthBusy(false);
+    }
+}
+
+async function handleSignOut() {
+    try {
+        await signOut(auth);
+    } catch (error) {
+        console.error("Sign out error:", error);
+        showToast("Sign out failed");
+    }
+}
+
 function saveHabits(statusText = "Saved locally") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(streaks));
+    if (currentUser) {
+        localStorage.setItem(getHabitsStorageKey(), JSON.stringify(streaks));
+    }
+
     syncStatus.innerText = statusText;
 }
 
-function loadHabitsFromLocal() {
+function loadHabitsFromLocal(uid = currentUser?.uid) {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(getHabitsStorageKey(uid));
         const parsed = raw ? JSON.parse(raw) : [];
 
         if (!Array.isArray(parsed)) {
@@ -424,7 +660,7 @@ function normalizeHabit(data, firebaseDocId) {
     const identity = normalizeHabitIdentity(data);
 
     return {
-        id: data.id || createId(),
+        id: data.id || firebaseDocId || createId(),
         name: identity.name,
         history: normalizeHistory(data.history),
         color: data.color || "#63b3ed",
@@ -434,26 +670,30 @@ function normalizeHabit(data, firebaseDocId) {
     };
 }
 
-async function loadHabitsFromFirebase() {
+async function loadHabitsFromFirebase(user = requireCurrentUser()) {
     try {
-        const querySnapshot = await getDocs(collection(db, "habits"));
+        const querySnapshot = await getDocs(getUserHabitsCollection(user));
+
+        if (currentUser?.uid !== user.uid) return;
 
         streaks = querySnapshot.docs.map(docSnap => normalizeHabit(docSnap.data(), docSnap.id));
         sortHabitsByPerformance();
 
-        saveHabits("Loaded from Firebase");
+        saveHabits("");
         render();
-        console.log("Loaded habits from Firebase:", streaks);
+        console.log("Loaded user habits from Firebase:", streaks);
     } catch (error) {
         console.error("Firebase load error:", error);
-        loadHabitsFromLocal();
+        if (currentUser?.uid !== user.uid) return;
+        loadHabitsFromLocal(user.uid);
         render();
         saveHabits("Loaded local backup");
         showToast("Loaded local backup");
     }
 }
 
-async function syncHabitToFirebase(streak) {
+async function syncHabitToFirebase(streak, user = requireCurrentUser()) {
+    const habitId = streak.firebaseDocId || streak.id;
     const payload = {
         id: streak.id,
         name: streak.name,
@@ -463,14 +703,9 @@ async function syncHabitToFirebase(streak) {
         createdAt: typeof streak.createdAt === "number" ? streak.createdAt : Date.now()
     };
 
-    if (streak.firebaseDocId) {
-        await updateDoc(doc(db, "habits", streak.firebaseDocId), payload);
-        return streak.firebaseDocId;
-    }
-
-    const docRef = await addDoc(collection(db, "habits"), payload);
-    streak.firebaseDocId = docRef.id;
-    return docRef.id;
+    streak.firebaseDocId = habitId;
+    await setDoc(getUserHabitDocRef(streak, user), payload, { merge: true });
+    return habitId;
 }
 
 function calculateMonthlyRecord(history) {
@@ -987,8 +1222,9 @@ function renderCalendar() {
 }
 
 async function toggleDay(id, dStr) {
+    const user = currentUser;
     const streak = streaks.find(item => item.id === id);
-    if (!streak) return;
+    if (!user || !streak) return;
 
     const history = [...(streak.history || [])];
     const existingIndex = history.indexOf(dStr);
@@ -1015,12 +1251,16 @@ async function toggleDay(id, dStr) {
     updateYearlyProgress();
 
     try {
-        await syncHabitToFirebase(streak);
-        saveHabits("Saved to Firebase");
+        await syncHabitToFirebase(streak, user);
+        if (currentUser?.uid === user.uid) {
+            saveHabits("Saved to Firebase");
+        }
     } catch (error) {
         console.error("Firebase calendar sync error:", error);
-        saveHabits("Saved locally only");
-        showToast("Firebase sync failed");
+        if (currentUser?.uid === user.uid) {
+            saveHabits("Saved locally only");
+            showToast("Firebase sync failed");
+        }
     }
 }
 
@@ -1328,8 +1568,9 @@ function toggleColorPopover(popover, trigger) {
 }
 
 async function addHabit() {
+    const user = currentUser;
     const name = inputName.value.trim();
-    if (!name) return;
+    if (!user || !name) return;
 
     if (streaks.some(streak => streak.name.toLowerCase() === name.toLowerCase())) {
         showToast("Already exists!");
@@ -1339,24 +1580,22 @@ async function addHabit() {
     saveRecentColor(selColor);
     renderRecentColors();
 
+    const habitId = createId();
     const newHabit = {
-        id: createId(),
+        id: habitId,
         name: name.charAt(0).toUpperCase() + name.slice(1),
         history: [],
         color: selColor,
         emoji: selEmoji,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        firebaseDocId: habitId
     };
 
     try {
-        const docRef = await addDoc(collection(db, "habits"), newHabit);
+        await syncHabitToFirebase(newHabit, user);
+        if (currentUser?.uid !== user.uid) return;
 
-        const habitWithFirebaseId = {
-            ...newHabit,
-            firebaseDocId: docRef.id
-        };
-
-        streaks.push(habitWithFirebaseId);
+        streaks.push(newHabit);
         sortHabitsByPerformance();
         saveHabits("Saved to Firebase");
         render();
@@ -1365,10 +1604,11 @@ async function addHabit() {
         hideColorPopover(colorPalette);
         inputName.value = "";
 
-        console.log("FIREBASE SAVED OK, doc id:", docRef.id);
+        console.log("FIREBASE SAVED OK, doc id:", habitId);
         showToast("Saved to Firebase 🔥");
     } catch (error) {
         console.error("Firestore save error full:", error);
+        if (currentUser?.uid !== user.uid) return;
 
         streaks.push(newHabit);
         sortHabitsByPerformance();
@@ -1379,24 +1619,26 @@ async function addHabit() {
         hideColorPopover(colorPalette);
         inputName.value = "";
 
-        alert("Firebase error: " + error.message);
         showToast("Saved locally only");
     }
 }
 
 async function deleteHabit() {
-    if (!streakToDeleteId) return;
+    const user = currentUser;
+    if (!user || !streakToDeleteId) return;
 
     const habitToDelete = streaks.find(streak => streak.id === streakToDeleteId);
 
     try {
-        if (habitToDelete?.firebaseDocId) {
-            await deleteDoc(doc(db, "habits", habitToDelete.firebaseDocId));
-            console.log("Deleted from Firebase:", habitToDelete.firebaseDocId);
+        if (habitToDelete) {
+            await deleteDoc(getUserHabitDocRef(habitToDelete, user));
+            console.log("Deleted from Firebase:", habitToDelete.firebaseDocId || habitToDelete.id);
         }
+        if (currentUser?.uid !== user.uid) return;
     } catch (error) {
         console.error("Firebase delete error:", error);
-        alert("Firebase delete error: " + error.message);
+        showToast("Delete failed");
+        return;
     }
 
     streaks = streaks.filter(streak => streak.id !== streakToDeleteId);
@@ -1408,13 +1650,25 @@ async function deleteHabit() {
 
     streakToDeleteId = null;
     sortHabitsByPerformance();
-    saveHabits("Saved locally");
+    saveHabits("Saved to Firebase");
     render();
     deleteOverlay.style.display = "none";
     showToast("Deleted");
 }
 
 function bindEvents() {
+    if (appEventsBound) return;
+    appEventsBound = true;
+
+    authForm.addEventListener("submit", handleAuthSubmit);
+    signOutBtn.addEventListener("click", handleSignOut);
+    document.querySelectorAll("[data-auth-mode]").forEach(button => {
+        button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
+    });
+    document.querySelectorAll("[data-password-toggle]").forEach(button => {
+        button.addEventListener("click", () => togglePasswordVisibility(button.dataset.passwordToggle));
+    });
+
     sContainer.addEventListener("pointerdown", event => {
         const target = event.target.closest('[data-action="open"]');
         if (!target) return;
@@ -1544,33 +1798,86 @@ function bindEvents() {
     });
 }
 
-function loadHabitsFromFirebaseWithTimeout(timeoutMs = 8000) {
+function loadHabitsFromFirebaseWithTimeout(user = requireCurrentUser(), timeoutMs = 8000) {
     return Promise.race([
-        loadHabitsFromFirebase(),
+        loadHabitsFromFirebase(user),
         new Promise((_, reject) => setTimeout(() => reject(new Error("Firebase timeout")), timeoutMs))
     ]);
 }
 
-async function init() {
+function showSignedOutScreen() {
+    if (colorSyncTimeout) {
+        window.clearTimeout(colorSyncTimeout);
+        colorSyncTimeout = null;
+    }
+
+    currentUser = null;
+    closeAllOverlays();
+    resetHabitState();
+    syncStatus.innerText = "";
+    sessionUser.innerText = "";
+    authPassword.value = "";
+    authScreen.hidden = false;
+    appShell.hidden = true;
+    setLoadingVisible(false);
+}
+
+async function showSignedInScreen(user) {
+    if (colorSyncTimeout) {
+        window.clearTimeout(colorSyncTimeout);
+        colorSyncTimeout = null;
+    }
+
+    currentUser = user;
+    authScreen.hidden = true;
+    appShell.hidden = false;
+    sessionUser.innerText = user.displayName || user.email || "Signed in";
     syncStatus.innerText = "Loading...";
+    renderRecentColors();
+    setLoadingVisible(true);
+
+    try {
+        await saveUserProfile(user, { lastLoginAt: Date.now() });
+    } catch (error) {
+        console.warn("User profile sync failed:", error);
+    }
+
+    try {
+        await loadHabitsFromFirebaseWithTimeout(user);
+    } catch (error) {
+        console.warn("Firebase load failed or timed out:", error);
+        if (currentUser?.uid !== user.uid) return;
+        loadHabitsFromLocal(user.uid);
+        render();
+        saveHabits("Loaded local backup");
+        showToast("Loaded local backup");
+    } finally {
+        if (currentUser?.uid === user.uid) {
+            setLoadingVisible(false);
+        }
+    }
+}
+
+function watchAuthState() {
+    onAuthStateChanged(auth, user => {
+        if (user) {
+            showSignedInScreen(user);
+            return;
+        }
+
+        showSignedOutScreen();
+    });
+}
+
+function init() {
+    setAuthMode("login");
     createIcons();
     createColors(colorPalette);
     createColors(editColorPalette);
     mountColorPopover(colorPalette);
     mountColorPopover(editColorPalette);
     bindEvents();
-
-    try {
-        await loadHabitsFromFirebaseWithTimeout();
-    } catch (error) {
-        console.warn("Firebase load failed or timed out:", error);
-        loadHabitsFromLocal();
-        render();
-        saveHabits("Loaded local backup");
-        showToast("Loaded local backup");
-    } finally {
-        loadingScreen.style.display = "none";
-    }
+    watchAuthState();
 }
 
 init();

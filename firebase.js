@@ -1,4 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-auth.js";
 import { initializeFirestore } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -11,10 +12,11 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
 const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
   useFetchStreams: false
 });
 
-export { app, db };
+export { app, auth, db };
