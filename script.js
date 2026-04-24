@@ -280,7 +280,7 @@ function showToast(msg) {
     clearTimeout(showToast.timeoutId);
     showToast.timeoutId = setTimeout(() => {
         toast.style.opacity = "0";
-    }, 2000);
+    }, 3000);
 }
 
 function getAllColorOptions() {
