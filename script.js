@@ -25,6 +25,7 @@ let streakToDeleteId = null;
 let calDate = new Date();
 let selColor = "#63b3ed";
 let selEmoji = "🌅";
+let selectedTemplateIndex = 0;
 let selectedIconElement = null;
 let selectedColorDisplay = "#63b3ed";
 let suggestedColor = "#63b3ed";
@@ -42,6 +43,21 @@ function isTouchDevice() {
         navigator.maxTouchPoints > 0 ||
         window.matchMedia?.("(hover: none), (pointer: coarse)").matches
     );
+}
+
+const emojiSegmenter = typeof Intl !== "undefined" && Intl.Segmenter
+    ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+    : null;
+
+function isCompoundEmoji(emoji) {
+    if (!emoji) return false;
+
+    if (emojiSegmenter) {
+        return [...emojiSegmenter.segment(emoji)].length > 1;
+    }
+
+    const pictographs = emoji.match(/\p{Extended_Pictographic}/gu) || [];
+    return pictographs.length > 1 && !emoji.includes("\u200d");
 }
 
 const rewardMessages = [
@@ -67,6 +83,7 @@ const habitTemplates = [
     { emoji: "🧠", name: "Daily Brain Exercise" },
     { emoji: "🧘‍♂️", name: "Meditate daily" },
     { emoji: "🌳", name: "Walk outside" },
+    { emoji: "🎣", name: "Fishing" },
     { emoji: "🏋️‍♂️", name: "Exercise daily" },
     { emoji: "✍️", name: "Journal thoughts" },
     { emoji: "🙏", name: "Practice gratitude" },
@@ -74,13 +91,16 @@ const habitTemplates = [
     { emoji: "🗓️", name: "Plan tomorrow" },
     { emoji: "🍬", name: "Limit sugar" },
     { emoji: "🥤", name: "Avoid soda" },
+    { emoji: "⏳", name: "Fasting" },
     { emoji: "🌬️", name: "Breathe deeply" },
     { emoji: "💻", name: "Learn coding" },
     { emoji: "🗣️", name: "Practice English" },
     { emoji: "🧹", name: "Tidy room" },
     { emoji: "💰", name: "Track spending" },
+    { emoji: "💰", name: "Money" },
     { emoji: "😴", name: "Sleep earlier" },
     { emoji: "📵", name: "No scrolling" },
+    { emoji: "🚫📱", name: "No Shorts" },
     { emoji: "🍳", name: "Cook dinner" },
     { emoji: "🧘", name: "Check posture" },
     { emoji: "🧼", name: "Wash dishes" },
@@ -1057,7 +1077,7 @@ function render() {
                 <div class="bubble${isDone ? " done-today" : ""}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                     ${isDone ? `<div class="check-badge" aria-hidden="true">✓</div>` : ""}
                     <div class="icon-badge">
-                        <div class="streak-emoji">${streak.emoji || "📚"}</div>
+                        <div class="streak-emoji${isCompoundEmoji(streak.emoji) ? " is-compound" : ""}">${streak.emoji || "📚"}</div>
                     </div>
                     <div class="streak-count" style="color: ${isDone ? "var(--bubble-done-text, #f8fafc)" : "var(--sky-blue)"}">
                         ${Math.round(stats.percent)}<span class="percent-sign">%</span><span class="month-label">${currentMonthLabel}</span>
@@ -1149,12 +1169,14 @@ function openStreak(id) {
 function openAddModal() {
     colorPickerMode = "create";
     modal.style.display = "flex";
-    inputName.value = habitTemplates[0].name;
-    selEmoji = habitTemplates[0].emoji;
-    suggestedColor = getSuggestedColorForTemplate(habitTemplates[0]);
+    const defaultTemplate = habitTemplates[0];
+    selectedTemplateIndex = 0;
+    inputName.value = defaultTemplate.name;
+    selEmoji = defaultTemplate.emoji;
+    suggestedColor = getSuggestedColorForTemplate(defaultTemplate);
     userHasPickedColor = false;
 
-    updateIconSelection();
+    updateIconSelection(iconContainer.querySelector('[data-template-index="0"]'));
     applySelectedColor(suggestedColor);
     iconContainer.scrollTop = 0;
 }
@@ -1379,6 +1401,7 @@ function updateColorPreview() {
             ${mode === "create" ? selectedColorDisplay : previewDisplay}
         `;
         previewIcon.textContent = previewEmoji;
+        previewIcon.classList.toggle("is-compound", isCompoundEmoji(previewEmoji));
     });
 }
 
@@ -1427,12 +1450,18 @@ function createIcons() {
     iconContainer.innerHTML = "";
     selectedIconElement = null;
 
-    habitTemplates.forEach(template => {
+    habitTemplates.forEach((template, index) => {
         const item = document.createElement("div");
-        item.className = `icon-option${template.emoji === selEmoji ? " selected" : ""}`;
+        item.className = "icon-option";
+        item.dataset.templateIndex = String(index);
         item.innerText = template.emoji;
 
-        if (template.emoji === selEmoji) {
+        if (isCompoundEmoji(template.emoji)) {
+            item.classList.add("is-compound");
+        }
+
+        if (index === selectedTemplateIndex) {
+            item.classList.add("selected");
             selectedIconElement = item;
         }
 
@@ -1443,6 +1472,7 @@ function createIcons() {
         });
 
         item.addEventListener("click", () => {
+            selectedTemplateIndex = index;
             selEmoji = template.emoji;
             suggestedColor = getSuggestedColorForTemplate(template);
 
@@ -1485,7 +1515,7 @@ function createColors(palette = colorPalette) {
     preview.innerHTML = `
         <div class="color-preview-ring">
             <div class="color-preview-bubble">
-                <span class="color-preview-icon">${selEmoji}</span>
+                <span class="color-preview-icon${isCompoundEmoji(selEmoji) ? " is-compound" : ""}">${selEmoji}</span>
             </div>
         </div>
         <div class="color-preview-copy">

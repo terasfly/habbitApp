@@ -685,6 +685,14 @@ h1 {
     transition: filter 0.22s ease, opacity 0.22s ease, transform 0.22s ease;
 }
 
+.streak-emoji.is-compound {
+    width: auto;
+    min-width: 1em;
+    font-size: calc(var(--streak-icon-size) * 0.68);
+    letter-spacing: -0.08em;
+    white-space: nowrap;
+}
+
 @media (max-width: 480px) {
     .icon-badge {
         --streak-icon-size: clamp(2.65rem, 11vw, 3.05rem);
@@ -1116,6 +1124,11 @@ h1 {
     backface-visibility: hidden;
 }
 
+.icon-option.is-compound {
+    font-size: 1.08rem;
+    letter-spacing: -0.08em;
+}
+
 .icon-option:hover {
     transform: scale(1.04);
     box-shadow: inset 0 2px 6px rgba(255,255,255,0.28), 0 8px 18px rgba(0,0,0,0.18);
@@ -1374,9 +1387,18 @@ input[type="password"] {
 }
 
 .color-preview-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: 1.45rem;
     line-height: 1;
     filter: drop-shadow(0 0 8px rgba(255,255,255,0.26));
+}
+
+.color-preview-icon.is-compound {
+    font-size: 1.08rem;
+    letter-spacing: -0.06em;
+    white-space: nowrap;
 }
 
 .color-preview-title {
