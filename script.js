@@ -1012,6 +1012,26 @@ function getProgressColors(ratio) {
     };
 }
 
+const habitPercentTones = [
+    { max: 9, color: "#b8f7ff", glow: "rgba(125, 211, 252, 0.30)", edge: "rgba(184, 247, 255, 0.18)" },
+    { max: 19, color: "#7dd3fc", glow: "rgba(56, 189, 248, 0.32)", edge: "rgba(125, 211, 252, 0.18)" },
+    { max: 29, color: "#38bdf8", glow: "rgba(14, 165, 233, 0.34)", edge: "rgba(56, 189, 248, 0.20)" },
+    { max: 39, color: "#22d3ee", glow: "rgba(34, 211, 238, 0.34)", edge: "rgba(34, 211, 238, 0.20)" },
+    { max: 49, color: "#2dd4bf", glow: "rgba(45, 212, 191, 0.34)", edge: "rgba(45, 212, 191, 0.20)" },
+    { max: 59, color: "#34d399", glow: "rgba(52, 211, 153, 0.34)", edge: "rgba(52, 211, 153, 0.20)" },
+    { max: 69, color: "#a3e635", glow: "rgba(163, 230, 53, 0.34)", edge: "rgba(163, 230, 53, 0.20)" },
+    { max: 79, color: "#facc15", glow: "rgba(250, 204, 21, 0.38)", edge: "rgba(250, 204, 21, 0.22)" },
+    { max: 89, color: "#fb923c", glow: "rgba(251, 146, 60, 0.42)", edge: "rgba(251, 146, 60, 0.24)" },
+    { max: 99, color: "#ff6b35", glow: "rgba(255, 107, 53, 0.46)", edge: "rgba(255, 107, 53, 0.26)" },
+    { max: 100, color: "#ffd166", glow: "rgba(255, 76, 32, 0.54)", edge: "rgba(255, 209, 102, 0.32)" }
+];
+
+function getHabitPercentTone(percent) {
+    const value = Number.isFinite(percent) ? percent : 0;
+    const clamped = Math.max(0, Math.min(100, Math.round(value)));
+    return habitPercentTones.find(tone => clamped <= tone.max) || habitPercentTones[habitPercentTones.length - 1];
+}
+
 function animateMobileRingDot(card, rotation) {
     if (!isTouchDevice()) return;
 
@@ -1051,6 +1071,8 @@ function render() {
         const color = streak.color || "#63b3ed";
         const colorRgb = hexToRgb(color);
         const stats = getMonthProgress(streak.history || []);
+        const displayedPercent = Math.max(0, Math.min(100, Math.round(stats.percent)));
+        const percentTone = getHabitPercentTone(displayedPercent);
         const recentWeekDays = getRecentWeekDays(streak.history || []);
         const rotation = (stats.percent / 100) * 360;
         const dotRotation = isTouchDevice() ? 0 : rotation;
@@ -1079,8 +1101,8 @@ function render() {
                     <div class="icon-badge">
                         <div class="streak-emoji${isCompoundEmoji(streak.emoji) ? " is-compound" : ""}">${streak.emoji || "📚"}</div>
                     </div>
-                    <div class="streak-count" style="color: ${isDone ? "var(--bubble-done-text, #f8fafc)" : "var(--sky-blue)"}">
-                        ${Math.round(stats.percent)}<span class="percent-sign">%</span><span class="month-label">${currentMonthLabel}</span>
+                    <div class="streak-count" style="--percent-color: ${percentTone.color}; --percent-glow: ${percentTone.glow}; --percent-edge: ${percentTone.edge};">
+                        <span class="streak-percent-value">${displayedPercent}<span class="percent-sign">%</span></span><span class="month-label">${currentMonthLabel}</span>
                     </div>
                     <div class="streak-dots" aria-label="Last 7 days activity">
                         ${streakDots}

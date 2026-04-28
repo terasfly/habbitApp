@@ -240,7 +240,7 @@ h1 {
 .streaks-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 25px 15px;
+    gap: clamp(20px, 5.8vw, 25px) clamp(10px, 3.5vw, 15px);
     width: 100%;
     padding-bottom: 20px;
     align-items: start;
@@ -714,6 +714,35 @@ h1 {
     transform: translateY(var(--content-offset-y));
 }
 
+.streak-percent-value {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 1px;
+    padding: 3px 7px 4px;
+    border-radius: 999px;
+    color: var(--percent-color, var(--sky-blue));
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025)),
+        rgba(2, 6, 23, 0.56);
+    border: 1px solid var(--percent-edge, rgba(255,255,255,0.12));
+    box-shadow:
+        inset 0 1px 1px rgba(255,255,255,0.08),
+        0 6px 14px rgba(0,0,0,0.14),
+        0 0 14px var(--percent-glow, rgba(99,179,237,0.20));
+    text-shadow:
+        0 1px 2px rgba(0,0,0,0.78),
+        0 0 9px var(--percent-glow, rgba(99,179,237,0.24)),
+        0 0 1px rgba(2,6,23,0.90);
+    -webkit-text-stroke: 0.2px rgba(2,6,23,0.42);
+    font-variant-numeric: tabular-nums;
+    transition:
+        color 0.28s ease,
+        border-color 0.28s ease,
+        box-shadow 0.28s ease,
+        text-shadow 0.28s ease;
+}
+
 .month-label {
     flex: 0 0 auto;
     color: rgba(248, 250, 252, 0.94);
@@ -741,6 +770,9 @@ h1 {
 }
 
 .streak-dots {
+    --dot-size: clamp(12px, 4.2vw, 18px);
+    --dot-font-size: clamp(0.4rem, 1.8vw, 0.48rem);
+    --dot-edge-gap: 3px;
     position: absolute;
     inset: 0;
     display: block;
@@ -751,8 +783,8 @@ h1 {
 
 .streak-dot-mini {
     position: absolute;
-    left: clamp(3px, calc(var(--dot-x, 50%) + var(--dot-offset-x, 0px) - (var(--dot-size, 18px) / 2)), calc(100% - var(--dot-size, 18px) - 3px));
-    top: clamp(3px, calc(var(--dot-y) + var(--dot-offset-y, 0px) - (var(--dot-size, 18px) / 2)), calc(100% - var(--dot-size, 18px) - 3px));
+    left: clamp(var(--dot-edge-gap, 3px), calc(var(--dot-x, 50%) - (var(--dot-size, 18px) / 2)), calc(100% - var(--dot-size, 18px) - var(--dot-edge-gap, 3px)));
+    top: clamp(var(--dot-edge-gap, 3px), calc(var(--dot-y) - (var(--dot-size, 18px) / 2)), calc(100% - var(--dot-size, 18px) - var(--dot-edge-gap, 3px)));
     width: var(--dot-size, 18px);
     height: var(--dot-size, 18px);
     border-radius: 50%;
@@ -772,90 +804,99 @@ h1 {
     transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, color 0.22s ease;
 }
 
+/* Lower inner arc: equal-angle points on one smooth ellipse. */
 .streak-dot-mini:nth-child(1) {
     --dot-x: 20.5%;
-    --dot-y: 83%;
+    --dot-y: 80.2%;
 }
 
 .streak-dot-mini:nth-child(2) {
-    --dot-x: 28.9%;
-    --dot-y: 88.6%;
+    --dot-x: 29.8%;
+    --dot-y: 86.5%;
 }
 
 .streak-dot-mini:nth-child(3) {
-    --dot-x: 39%;
-    --dot-y: 92.1%;
+    --dot-x: 39.5%;
+    --dot-y: 90.3%;
 }
 
 .streak-dot-mini:nth-child(4) {
     --dot-x: 50%;
-    --dot-y: 93.3%;
+    --dot-y: 91.6%;
 }
 
 .streak-dot-mini:nth-child(5) {
-    --dot-x: 61%;
-    --dot-y: 92.1%;
+    --dot-x: 60.5%;
+    --dot-y: 90.3%;
 }
 
 .streak-dot-mini:nth-child(6) {
-    --dot-x: 71.1%;
-    --dot-y: 88.6%;
+    --dot-x: 70.2%;
+    --dot-y: 86.5%;
 }
 
 .streak-dot-mini:nth-child(7) {
     --dot-x: 79.5%;
-    --dot-y: 83%;
+    --dot-y: 80.2%;
 }
 
-@media (max-width: 426px) {
-    .streak-dots {
-        --dot-step: clamp(18px, 5vw, 20px);
-    }
-
-    .streak-dot-mini {
-        --dot-offset-y: 0px;
-    }
-
+@media (max-width: 429px) {
     .streak-dot-mini:nth-child(1) {
-        --dot-x: 50%;
-        --dot-y: 79%;
-        --dot-offset-x: calc(var(--dot-step) * -3);
+        --dot-x: 18.8%;
     }
 
     .streak-dot-mini:nth-child(2) {
-        --dot-x: 50%;
-        --dot-y: 85.6%;
-        --dot-offset-x: calc(var(--dot-step) * -2);
+        --dot-x: 29.2%;
     }
 
     .streak-dot-mini:nth-child(3) {
-        --dot-x: 50%;
-        --dot-y: 89.7%;
-        --dot-offset-x: calc(var(--dot-step) * -1);
+        --dot-x: 39.6%;
     }
 
     .streak-dot-mini:nth-child(4) {
         --dot-x: 50%;
-        --dot-y: 91%;
-        --dot-offset-x: 0px;
     }
 
     .streak-dot-mini:nth-child(5) {
-        --dot-x: 50%;
-        --dot-y: 89.7%;
-        --dot-offset-x: var(--dot-step);
+        --dot-x: 60.4%;
     }
 
     .streak-dot-mini:nth-child(6) {
-        --dot-x: 50%;
-        --dot-y: 85.6%;
-        --dot-offset-x: calc(var(--dot-step) * 2);
+        --dot-x: 70.8%;
     }
 
     .streak-dot-mini:nth-child(7) {
+        --dot-x: 81.2%;
+    }
+}
+
+@media (max-width: 300px) {
+    .streak-dot-mini:nth-child(1) {
+        --dot-x: 24%;
+    }
+
+    .streak-dot-mini:nth-child(2) {
+        --dot-x: 32.5%;
+    }
+
+    .streak-dot-mini:nth-child(3) {
+        --dot-x: 41.2%;
+    }
+
+    .streak-dot-mini:nth-child(4) {
         --dot-x: 50%;
-        --dot-y: 79%;
-        --dot-offset-x: calc(var(--dot-step) * 3);
+    }
+
+    .streak-dot-mini:nth-child(5) {
+        --dot-x: 58.8%;
+    }
+
+    .streak-dot-mini:nth-child(6) {
+        --dot-x: 67.5%;
+    }
+
+    .streak-dot-mini:nth-child(7) {
+        --dot-x: 76%;
     }
 }
 
