@@ -962,6 +962,48 @@ h1 {
     transform: translateY(var(--content-offset-y));
 }
 
+.streak-fire {
+    --fire-text: rgba(148, 163, 184, 0.78);
+    --fire-glow: rgba(251, 146, 60, 0);
+    --fire-aura: rgba(250, 204, 21, 0);
+    --fire-opacity: 0.42;
+    --fire-saturation: 0.65;
+    --fire-brightness: 0.9;
+    max-width: calc(100% - 14px);
+    white-space: nowrap;
+    color: var(--fire-text);
+    text-shadow: 0 0 8px var(--fire-glow), 0 0 15px var(--fire-aura);
+}
+
+.streak-fire-icon {
+    opacity: var(--fire-opacity);
+    filter:
+        saturate(var(--fire-saturation))
+        brightness(var(--fire-brightness))
+        drop-shadow(0 0 4px var(--fire-glow))
+        drop-shadow(0 0 10px var(--fire-aura));
+}
+
+.streak-fire-spark { --fire-text: #fdba74; --fire-opacity: 0.62; --fire-saturation: 0.9; --fire-glow: rgba(251, 146, 60, 0.12); }
+.streak-fire-warm { --fire-text: #fb923c; --fire-opacity: 0.74; --fire-saturation: 1.05; --fire-glow: rgba(251, 146, 60, 0.2); }
+.streak-fire-on-fire { --fire-text: #fed7aa; --fire-opacity: 0.9; --fire-saturation: 1.15; --fire-brightness: 1.04; --fire-glow: rgba(251, 146, 60, 0.32); }
+.streak-fire-strong-flame { --fire-text: #ffedd5; --fire-opacity: 1; --fire-saturation: 1.22; --fire-brightness: 1.08; --fire-glow: rgba(251, 146, 60, 0.46); }
+.streak-fire-legendary { --fire-text: #fde68a; --fire-opacity: 1; --fire-saturation: 1.28; --fire-brightness: 1.12; --fire-glow: rgba(251, 146, 60, 0.5); --fire-aura: rgba(250, 204, 21, 0.28); }
+.streak-fire-elite { --fire-text: #fef3c7; --fire-opacity: 1; --fire-saturation: 1.34; --fire-brightness: 1.16; --fire-glow: rgba(251, 146, 60, 0.58); --fire-aura: rgba(250, 204, 21, 0.38); }
+.streak-fire-beast-mode { --fire-text: #fff7ed; --fire-opacity: 1; --fire-saturation: 1.42; --fire-brightness: 1.2; --fire-glow: rgba(251, 146, 60, 0.64); --fire-aura: rgba(250, 204, 21, 0.44); animation: streak-fire-pulse 2.4s ease-in-out infinite; }
+.streak-fire-immortal { --fire-text: #ffffff; --fire-opacity: 1; --fire-saturation: 1.5; --fire-brightness: 1.24; --fire-glow: rgba(251, 146, 60, 0.72); --fire-aura: rgba(250, 204, 21, 0.52); animation: streak-fire-pulse 2.2s ease-in-out infinite; }
+
+@keyframes streak-fire-pulse {
+    50% { text-shadow: 0 0 12px var(--fire-glow), 0 0 24px var(--fire-aura); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .streak-fire-beast-mode,
+    .streak-fire-immortal {
+        animation: none;
+    }
+}
+
 .bubble.done-today .separator {
     background: rgba(255,255,255,0.16);
 }
@@ -1634,7 +1676,19 @@ input[type="password"] {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 3px;
+    margin-top: 6px;
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
     margin-top: 10px;
+    color: rgba(226, 232, 240, 0.58);
+    font-size: clamp(0.58rem, 2.4vw, 0.68rem);
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
 }
 
 .calendar-day {

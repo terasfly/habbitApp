@@ -790,6 +790,23 @@ function getCurrentStreak(history) {
     return count;
 }
 
+const streakLevels = [
+    { min: 100, id: "immortal" },
+    { min: 61, id: "beast-mode" },
+    { min: 41, id: "elite" },
+    { min: 31, id: "legendary" },
+    { min: 15, id: "strong-flame" },
+    { min: 8, id: "on-fire" },
+    { min: 4, id: "warm" },
+    { min: 1, id: "spark" },
+    { min: 0, id: "cold" }
+];
+
+function getStreakLevel(days) {
+    const value = Number.isFinite(days) ? Math.max(0, Math.floor(days)) : 0;
+    return streakLevels.find(level => value >= level.min) || streakLevels[streakLevels.length - 1];
+}
+
 function getHabitPerformance(streak) {
     const history = streak.history || [];
 
@@ -1071,6 +1088,8 @@ function render() {
         const color = streak.color || "#63b3ed";
         const colorRgb = hexToRgb(color);
         const stats = getMonthProgress(streak.history || []);
+        const currentStreak = getCurrentStreak(streak.history || []);
+        const streakLevel = getStreakLevel(currentStreak);
         const displayedPercent = Math.max(0, Math.min(100, Math.round(stats.percent)));
         const percentTone = getHabitPercentTone(displayedPercent);
         const recentWeekDays = getRecentWeekDays(streak.history || []);
@@ -1108,7 +1127,10 @@ function render() {
                         ${streakDots}
                     </div>
                     <div class="separator"></div>
-                    <div class="best-label">🔥 ${stats.best}</div>
+                    <div class="best-label streak-fire streak-fire-${streakLevel.id}" aria-label="${currentStreak} day${currentStreak === 1 ? "" : "s"} streak">
+                        <span class="streak-fire-count">${currentStreak}</span>
+                        <span class="streak-fire-icon" aria-hidden="true">🔥</span>
+                    </div>
                 </div>
             </div>
             <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${isDone ? 1 : 0};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="0">
