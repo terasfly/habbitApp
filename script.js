@@ -33,7 +33,6 @@ let userHasPickedColor = false;
 let colorPickerMode = "create";
 let colorSyncTimeout = null;
 let recentCompletionId = null;
-let recentCompletionMessage = null;
 let currentUser = null;
 let authMode = "login";
 let appEventsBound = false;
@@ -468,7 +467,6 @@ function resetHabitState() {
     activeId = null;
     streakToDeleteId = null;
     recentCompletionId = null;
-    recentCompletionMessage = null;
     sContainer.innerHTML = "";
     document.getElementById("progress-text").innerText = "0/0";
     document.getElementById("progress-fill").style.width = "0%";
@@ -790,6 +788,28 @@ function getCurrentStreak(history) {
     return count;
 }
 
+function getBestStreak(history) {
+    const completedDays = [...new Set(history || [])].sort();
+    let bestStreak = 0;
+    let currentStreak = 0;
+    let previousTime = null;
+
+    completedDays.forEach(dateKey => {
+        const [year, month, day] = dateKey.split("-").map(Number);
+        const currentTime = Date.UTC(year, month - 1, day);
+
+        if (!Number.isFinite(currentTime)) return;
+
+        currentStreak = previousTime !== null && currentTime - previousTime === 86400000
+            ? currentStreak + 1
+            : 1;
+        bestStreak = Math.max(bestStreak, currentStreak);
+        previousTime = currentTime;
+    });
+
+    return bestStreak;
+}
+
 const streakLevels = [
     { min: 100, id: "immortal" },
     { min: 61, id: "beast-mode" },
@@ -1077,6 +1097,46 @@ function pulseMobileRingDot(target) {
     dot.addEventListener("animationend", () => dot.classList.remove("tap-pulse"), { once: true });
 }
 
+function addCompletionRewardToArea(area, currentStreak, colorRgb) {
+    if (!area) return;
+
+    if (colorRgb) {
+        area.style.setProperty("--habit-rgb", colorRgb);
+    }
+
+    area.querySelector(".streak-dots-reward")?.remove();
+
+    const reward = document.createElement("span");
+    reward.className = "streak-dots-reward";
+    reward.setAttribute("aria-label", `${currentStreak} day${currentStreak === 1 ? "" : "s"} current streak`);
+    reward.textContent = `🔥 ${currentStreak}`;
+
+    const bubble = area.closest(".bubble");
+    bubble?.classList.add("has-completion-reward");
+
+    area.appendChild(reward);
+    reward.addEventListener("animationend", () => {
+        reward.remove();
+        bubble?.classList.remove("has-completion-reward");
+    }, { once: true });
+}
+
+function showCompletionRewardForHabit(id, currentStreak) {
+    const streak = streaks.find(item => item.id === id);
+    const colorRgb = hexToRgb(streak?.color || "#63b3ed");
+
+    if (calOverlay.style.display === "flex" && activeId === id) {
+        addCompletionRewardToArea(document.getElementById("calendar-days"), currentStreak, colorRgb);
+        return;
+    }
+
+    const identity = [...sContainer.querySelectorAll(".streak-identity[data-habit-id]")]
+        .find(item => item.dataset.habitId === id);
+    const dots = identity?.closest(".streak-card")?.querySelector(".streak-dots");
+
+    addCompletionRewardToArea(dots, currentStreak, colorRgb);
+}
+
 function render() {
     sortHabitsByPerformance();
     sContainer.innerHTML = "";
@@ -1089,6 +1149,7 @@ function render() {
         const colorRgb = hexToRgb(color);
         const stats = getMonthProgress(streak.history || []);
         const currentStreak = getCurrentStreak(streak.history || []);
+        const bestStreak = getBestStreak(streak.history || []);
         const streakLevel = getStreakLevel(currentStreak);
         const displayedPercent = Math.max(0, Math.min(100, Math.round(stats.percent)));
         const percentTone = getHabitPercentTone(displayedPercent);
@@ -1127,8 +1188,8 @@ function render() {
                         ${streakDots}
                     </div>
                     <div class="separator"></div>
-                    <div class="best-label streak-fire streak-fire-${streakLevel.id}" aria-label="${currentStreak} day${currentStreak === 1 ? "" : "s"} streak">
-                        <span class="streak-fire-count">${currentStreak}</span>
+                    <div class="best-label streak-fire streak-fire-${streakLevel.id}" aria-label="${bestStreak} day${bestStreak === 1 ? "" : "s"} streak">
+                        <span class="streak-fire-count">${bestStreak}</span>
                         <span class="streak-fire-icon" aria-hidden="true">🔥</span>
                     </div>
                 </div>
@@ -1142,25 +1203,6 @@ function render() {
         card.querySelector(".streak-count")?.after(card.querySelector(".best-label"));
 
         insightMessagesById[streak.id] = getInsightMessages(streak, isDone);
-
-        if (streak.id === recentCompletionId) {
-            const bubble = card.querySelector(".bubble");
-            if (bubble) {
-                bubble.classList.add("recent-complete");
-                bubble.addEventListener("animationend", () => bubble.classList.remove("recent-complete"), { once: true });
-            }
-
-            const feedback = document.createElement("div");
-            feedback.className = "completion-feedback";
-            feedback.innerText = recentCompletionMessage || "Nice 👌";
-            card.appendChild(feedback);
-            feedback.addEventListener("animationend", () => {
-                if (feedback.parentNode) feedback.parentNode.removeChild(feedback);
-            }, { once: true });
-
-            recentCompletionId = null;
-            recentCompletionMessage = null;
-        }
 
         sContainer.appendChild(card);
         animateMobileRingDot(card, rotation);
@@ -1294,15 +1336,14 @@ async function toggleDay(id, dStr) {
 
     const history = [...(streak.history || [])];
     const existingIndex = history.indexOf(dStr);
+    const completedToday = existingIndex < 0 && dStr === getDStr(new Date());
 
     if (existingIndex >= 0) {
         history.splice(existingIndex, 1);
     } else {
         history.push(dStr);
-        recentCompletionId = id;
-        const streak = streaks.find(item => item.id === id);
-        recentCompletionMessage = streak ? getCompletionMessage({ ...streak, history }) : "Nice 👌";
-        if (dStr === getDStr(new Date())) {
+        if (completedToday) {
+            recentCompletionId = id;
             triggerConfetti();
         }
     }
@@ -1315,6 +1356,11 @@ async function toggleDay(id, dStr) {
     render();
     renderCalendar();
     updateYearlyProgress();
+
+    if (completedToday) {
+        showCompletionRewardForHabit(id, getCurrentStreak(history));
+        recentCompletionId = null;
+    }
 
     try {
         await syncHabitToFirebase(streak, user);
