@@ -1,27 +1,27 @@
-const CACHE_NAME = "habit-app-v2";
+const CACHE_NAME = "habit-app-v6";
 const CORE_ASSETS = [
-    "/",
-    "/index.html",
-    "/style.css",
-    "/script.js",
-    "/firebase.js",
-    "/manifest.json",
-    "/icons/apple-touch-icon.png",
-    "/icons/icon-192.png",
-    "/icons/icon-512.png",
-    "/icons/favicon-16.png",
-    "/icons/favicon-32.png",
-    "/icons/favicon-48.png",
-    "/icons/apple-splash-1290x2796.png",
-    "/icons/apple-splash-1179x2556.png",
-    "/icons/apple-splash-1170x2532.png",
-    "/icons/apple-splash-1284x2778.png",
-    "/icons/apple-splash-1242x2688.png",
-    "/icons/apple-splash-1125x2436.png",
-    "/icons/apple-splash-828x1792.png",
-    "/icons/apple-splash-1242x2208.png",
-    "/icons/apple-splash-750x1334.png",
-    "/favicon.ico"
+    "./",
+    "index.html",
+    "style.css",
+    "script.js",
+    "firebase.js",
+    "manifest.json",
+    "icons/apple-touch-icon.png",
+    "icons/icon-192.png",
+    "icons/icon-512.png",
+    "icons/favicon-16.png",
+    "icons/favicon-32.png",
+    "icons/favicon-48.png",
+    "icons/apple-splash-1290x2796.png",
+    "icons/apple-splash-1179x2556.png",
+    "icons/apple-splash-1170x2532.png",
+    "icons/apple-splash-1284x2778.png",
+    "icons/apple-splash-1242x2688.png",
+    "icons/apple-splash-1125x2436.png",
+    "icons/apple-splash-828x1792.png",
+    "icons/apple-splash-1242x2208.png",
+    "icons/apple-splash-750x1334.png",
+    "favicon.ico"
 ];
 
 const CORE_ASSET_PATHS = new Set(
@@ -58,7 +58,7 @@ self.addEventListener("fetch", event => {
 
     if (request.mode === "navigate" && isSameOrigin) {
         event.respondWith(
-            fetch(request).catch(() => caches.match("/index.html"))
+            fetch(request).catch(() => caches.match("index.html"))
         );
         return;
     }
