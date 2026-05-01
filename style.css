@@ -28,6 +28,10 @@
     display: none !important;
 }
 
+html {
+    background: var(--bg-color);
+}
+
 body {
     background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
     color: var(--text-color);
