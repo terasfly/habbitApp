@@ -242,6 +242,693 @@ const colorSuggestions = [
     { keywords: ["money", "save", "spending"], color: "#48bb78" }
 ];
 
+const LANGUAGE_STORAGE_KEY = "appLanguage";
+const LEGACY_LANGUAGE_STORAGE_KEY = "habitAppLanguage";
+const supportedLanguages = new Set(["en", "lt"]);
+
+const translations = {
+    en: {
+        appTitle: "Habits",
+        loading: "Loading...",
+        language: "Language",
+        languageEnglish: "English",
+        languageLithuanian: "Lithuanian",
+        myHabits: "My Habits",
+        authMode: "Authentication mode",
+        logIn: "Log in",
+        signUp: "Sign up",
+        name: "Name",
+        email: "Email",
+        password: "Password",
+        passwordLabel: "password",
+        confirmPassword: "Confirm password",
+        confirmPasswordLabel: "confirm password",
+        show: "Show",
+        hide: "Hide",
+        signOut: "Sign out",
+        signedIn: "Signed in",
+        dailyProgress: "Daily Progress",
+        today: "Today",
+        thisMonth: "This Month",
+        bestStreak: "Best Streak",
+        addHabit: "Add Habit",
+        newHabit: "New Habit",
+        new: "New",
+        habit: "Habit",
+        habitName: "Habit Name",
+        create: "Create",
+        save: "Save",
+        cancel: "Cancel",
+        done: "Done",
+        close: "Close",
+        delete: "Delete",
+        deleteQuestion: "Delete?",
+        deleteWarning: "All history will be lost.",
+        no: "No",
+        yes: "Yes",
+        notification: "Notification",
+        color: "Color",
+        chooseIcon: "Choose icon",
+        chooseColor: "Choose color",
+        chooseCustomColor: "Choose custom color",
+        changeHabitColor: "Change habit color",
+        chooseHabitColor: "Choose habit color",
+        closeColorPicker: "Close color picker",
+        editColorSavedAccent: "Saved accent",
+        editColorSavedLocally: "Saved locally",
+        editColorSaving: "Saving...",
+        accent: "Accent",
+        selectedColor: "Selected color",
+        recent: "Recent",
+        recentColor: "Recent color",
+        yearlyProgress: "Yearly Progress",
+        yearlyHeatmapLabel: "Yearly habit activity heatmap",
+        yearlyCount: "{count} of {days} days",
+        completed: "completed",
+        notCompleted: "not completed",
+        heatmapCell: "{date}: {status}",
+        currentStreakAria: "{count} day{plural} current streak",
+        bestStreakAria: "{count} day{plural} streak",
+        lastSevenDaysActivity: "Last 7 days activity",
+        insightDone: "Done",
+        insightDonePerfectWeek: "Done - Perfect week",
+        insightDoneWeek: "Done - Week {count}/{days}",
+        insightDoneOnTrack: "Done - On track",
+        insightDoneGreatJob: "Done - Great job",
+        insightStart: "Start",
+        insightKeepGoing: "Keep it going",
+        insightAlmostBest: "Almost best",
+        insightWeek: "Week {count}/{days}",
+        statusSavedToFirebase: "Saved to Firebase",
+        statusSavedLocallyOnly: "Saved locally only",
+        statusSavedLocally: "Saved locally",
+        statusLoadedLocalBackup: "Loaded local backup",
+        toastSignOutFailed: "Sign out failed",
+        toastFirebaseSyncFailed: "Firebase sync failed",
+        toastStorageError: "Storage error",
+        toastAlreadyExists: "Already exists!",
+        toastSavedToFirebase: "Saved to Firebase 🔥",
+        toastSavedLocallyOnly: "Saved locally only",
+        toastDeleteFailed: "Delete failed",
+        toastDeleted: "Deleted",
+        authEnterPassword: "Enter a password.",
+        authConfirmPassword: "Confirm your password.",
+        authPasswordsDoNotMatch: "Passwords do not match",
+        authEnterName: "Enter a name.",
+        authEmailAlreadyInUse: "This email already has an account{detail}.",
+        authInvalidEmail: "Enter a valid email address{detail}.",
+        authWeakPassword: "Use at least 6 password characters{detail}.",
+        authEnableEmailPassword: "Enable Email/Password sign-in in Firebase Auth{detail}.",
+        authEnableFirebaseAuth: "Enable Firebase Authentication for this project{detail}.",
+        authUnauthorizedDomain: "Add this domain in Firebase Auth authorized domains{detail}.",
+        authNetworkFailed: "Check your internet connection{detail}.",
+        authTooManyRequests: "Too many attempts. Try again later{detail}.",
+        authPermissionDenied: "Account created, but Firestore rules need updating{detail}.",
+        authCheckCredentials: "Check your email and password{detail}.",
+        authFailed: "Authentication failed{detail}.",
+        rawMessage: "{message}",
+        weekdaysShort: ["M", "T", "W", "T", "F", "S", "S"],
+        monthsShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        colorGroups: {
+            Cool: "Cool",
+            Energy: "Energy",
+            Nature: "Nature",
+            Mind: "Mind",
+            Focus: "Focus",
+            Sunset: "Sunset",
+            Ocean: "Ocean",
+            Berry: "Berry",
+            Earth: "Earth"
+        },
+        colorLabels: {
+            Frost: "Frost",
+            Ice: "Ice",
+            Sky: "Sky",
+            Azure: "Azure",
+            Periwinkle: "Periwinkle",
+            Indigo: "Indigo",
+            Blush: "Blush",
+            "Rose Red": "Rose Red",
+            "Coral Pink": "Coral Pink",
+            Coral: "Coral",
+            Flame: "Flame",
+            Ember: "Ember",
+            Seedling: "Seedling",
+            Meadow: "Meadow",
+            Mint: "Mint",
+            Leaf: "Leaf",
+            Forest: "Forest",
+            Pine: "Pine",
+            Mist: "Mist",
+            Lavender: "Lavender",
+            Orchid: "Orchid",
+            Violet: "Violet",
+            Amethyst: "Amethyst",
+            "Deep Violet": "Deep Violet",
+            Glow: "Glow",
+            Butter: "Butter",
+            "Warm Gold": "Warm Gold",
+            Gold: "Gold",
+            Sun: "Sun",
+            Peach: "Peach",
+            Apricot: "Apricot",
+            "Golden Hour": "Golden Hour",
+            Sunset: "Sunset",
+            Tangerine: "Tangerine",
+            "Burnt Orange": "Burnt Orange",
+            Seafoam: "Seafoam",
+            Aqua: "Aqua",
+            Tide: "Tide",
+            Lagoon: "Lagoon",
+            Teal: "Teal",
+            "Deep Teal": "Deep Teal",
+            Petal: "Petal",
+            Candy: "Candy",
+            Bubblegum: "Bubblegum",
+            "Berry Pink": "Berry Pink",
+            Raspberry: "Raspberry",
+            Wine: "Wine",
+            Sand: "Sand",
+            "Clay Light": "Clay Light",
+            Ochre: "Ochre",
+            Bark: "Bark",
+            Umber: "Umber",
+            Amber: "Amber",
+            Clay: "Clay"
+        },
+        habitTemplates: {
+            "Wake up early": "Wake up early",
+            "Drink water": "Drink water",
+            "Make bed": "Make bed",
+            "Morning stretch": "Morning stretch",
+            "Read books": "Read books",
+            "Daily Brain Exercise": "Daily Brain Exercise",
+            "Meditate daily": "Meditate daily",
+            "Walk outside": "Walk outside",
+            "Fishing": "Fishing",
+            "Exercise daily": "Exercise daily",
+            "Journal thoughts": "Journal thoughts",
+            "Practice gratitude": "Practice gratitude",
+            "Eat slowly": "Eat slowly",
+            "Plan tomorrow": "Plan tomorrow",
+            "Limit sugar": "Limit sugar",
+            "Avoid soda": "Avoid soda",
+            "Fasting": "Fasting",
+            "Breathe deeply": "Breathe deeply",
+            "Learn coding": "Learn coding",
+            "Practice English": "Practice English",
+            "Tidy room": "Tidy room",
+            "Track spending": "Track spending",
+            "Money": "Money",
+            "Sleep earlier": "Sleep earlier",
+            "No scrolling": "No scrolling",
+            "No Shorts": "No Shorts",
+            "Cook dinner": "Cook dinner",
+            "Check posture": "Check posture",
+            "Wash dishes": "Wash dishes",
+            "Floss teeth": "Floss teeth",
+            "Review goals": "Review goals",
+            "Help someone": "Help someone",
+            "Evening reflection": "Evening reflection",
+            "Take vitamins": "Take vitamins",
+            "Cold shower": "Cold shower",
+            "Clean desk": "Clean desk",
+            "Study consistently": "Study consistently",
+            "Save money": "Save money",
+            "Listen podcasts": "Listen podcasts",
+            "Write ideas": "Write ideas",
+            "Daily prayer": "Daily prayer",
+            "Healthy breakfast": "Healthy breakfast",
+            "Protein intake": "Protein intake",
+            "Screen break": "Screen break",
+            "Call family": "Call family",
+            "Practice patience": "Practice patience",
+            "Declutter space": "Declutter space",
+            "Learn vocabulary": "Learn vocabulary",
+            "Keep promises": "Keep promises",
+            "Early bedtime": "Early bedtime",
+            "No junkfood": "No junkfood",
+            "Smile often": "Smile often"
+        }
+    },
+    lt: {
+        appTitle: "Įpročiai",
+        loading: "Kraunama...",
+        language: "Kalba",
+        languageEnglish: "Anglų",
+        languageLithuanian: "Lietuvių",
+        myHabits: "Mano įpročiai",
+        authMode: "Prisijungimo režimas",
+        logIn: "Prisijungti",
+        signUp: "Registruotis",
+        name: "Vardas",
+        email: "El. paštas",
+        password: "Slaptažodis",
+        passwordLabel: "slaptažodį",
+        confirmPassword: "Pakartok slaptažodį",
+        confirmPasswordLabel: "pakartotą slaptažodį",
+        show: "Rodyti",
+        hide: "Slėpti",
+        signOut: "Atsijungti",
+        signedIn: "Prisijungta",
+        dailyProgress: "Dienos progresas",
+        today: "Šiandien",
+        thisMonth: "Šis mėnuo",
+        bestStreak: "Geriausias streakas",
+        addHabit: "Pridėti įprotį",
+        newHabit: "Naujas įprotis",
+        new: "Naujas",
+        habit: "Įprotis",
+        habitName: "Įpročio pavadinimas",
+        create: "Sukurti",
+        save: "Išsaugoti",
+        cancel: "Atšaukti",
+        done: "Atlikta",
+        close: "Uždaryti",
+        delete: "Ištrinti",
+        deleteQuestion: "Ištrinti?",
+        deleteWarning: "Visa istorija bus prarasta.",
+        no: "Ne",
+        yes: "Taip",
+        notification: "Pranešimas",
+        color: "Spalva",
+        chooseIcon: "Pasirink ikoną",
+        chooseColor: "Pasirink spalvą",
+        chooseCustomColor: "Pasirink pasirinktinę spalvą",
+        changeHabitColor: "Keisti įpročio spalvą",
+        chooseHabitColor: "Pasirink įpročio spalvą",
+        closeColorPicker: "Uždaryti spalvų parinkiklį",
+        editColorSavedAccent: "Akcentas išsaugotas",
+        editColorSavedLocally: "Išsaugota lokaliai",
+        editColorSaving: "Saugoma...",
+        accent: "Akcentas",
+        selectedColor: "Pasirinkta spalva",
+        recent: "Naujausios",
+        recentColor: "Naujausia spalva",
+        yearlyProgress: "Metų progresas",
+        yearlyHeatmapLabel: "Metinis įpročio aktyvumo žemėlapis",
+        yearlyCount: "{count} iš {days} dienų",
+        completed: "atlikta",
+        notCompleted: "neatlikta",
+        heatmapCell: "{date}: {status}",
+        currentStreakAria: "Dabartinis streakas: {count} d.",
+        bestStreakAria: "Geriausias streakas: {count} d.",
+        lastSevenDaysActivity: "Paskutinių 7 dienų aktyvumas",
+        insightDone: "Atlikta",
+        insightDonePerfectWeek: "Atlikta - tobula savaitė",
+        insightDoneWeek: "Atlikta - savaitė {count}/{days}",
+        insightDoneOnTrack: "Atlikta - pagal planą",
+        insightDoneGreatJob: "Atlikta - puikiai",
+        insightStart: "Pradėk",
+        insightKeepGoing: "Tęsk",
+        insightAlmostBest: "Beveik rekordas",
+        insightWeek: "Savaitė {count}/{days}",
+        statusSavedToFirebase: "Išsaugota Firebase",
+        statusSavedLocallyOnly: "Išsaugota tik lokaliai",
+        statusSavedLocally: "Išsaugota lokaliai",
+        statusLoadedLocalBackup: "Įkelta vietinė kopija",
+        toastSignOutFailed: "Atsijungti nepavyko",
+        toastFirebaseSyncFailed: "Firebase sinchronizacija nepavyko",
+        toastStorageError: "Saugyklos klaida",
+        toastAlreadyExists: "Jau yra!",
+        toastSavedToFirebase: "Išsaugota Firebase 🔥",
+        toastSavedLocallyOnly: "Išsaugota tik lokaliai",
+        toastDeleteFailed: "Ištrinti nepavyko",
+        toastDeleted: "Ištrinta",
+        authEnterPassword: "Įvesk slaptažodį.",
+        authConfirmPassword: "Patvirtink slaptažodį.",
+        authPasswordsDoNotMatch: "Slaptažodžiai nesutampa",
+        authEnterName: "Įvesk vardą.",
+        authEmailAlreadyInUse: "Šis el. paštas jau turi paskyrą{detail}.",
+        authInvalidEmail: "Įvesk teisingą el. pašto adresą{detail}.",
+        authWeakPassword: "Naudok bent 6 slaptažodžio simbolius{detail}.",
+        authEnableEmailPassword: "Įjunk Email/Password prisijungimą Firebase Auth{detail}.",
+        authEnableFirebaseAuth: "Įjunk Firebase Authentication šiam projektui{detail}.",
+        authUnauthorizedDomain: "Pridėk šį domeną Firebase Auth leidžiamų domenų sąraše{detail}.",
+        authNetworkFailed: "Patikrink interneto ryšį{detail}.",
+        authTooManyRequests: "Per daug bandymų. Pabandyk vėliau{detail}.",
+        authPermissionDenied: "Paskyra sukurta, bet reikia atnaujinti Firestore taisykles{detail}.",
+        authCheckCredentials: "Patikrink el. paštą ir slaptažodį{detail}.",
+        authFailed: "Autentifikacija nepavyko{detail}.",
+        rawMessage: "{message}",
+        weekdaysShort: ["P", "A", "T", "K", "P", "Š", "S"],
+        monthsShort: ["Sau", "Vas", "Kov", "Bal", "Geg", "Bir", "Lie", "Rgp", "Rgs", "Spa", "Lap", "Gru"],
+        colorGroups: {
+            Cool: "Vėsios",
+            Energy: "Energija",
+            Nature: "Gamta",
+            Mind: "Mintys",
+            Focus: "Fokusas",
+            Sunset: "Saulėlydis",
+            Ocean: "Vandenynas",
+            Berry: "Uogos",
+            Earth: "Žemė"
+        },
+        colorLabels: {
+            Frost: "Šerkšnas",
+            Ice: "Ledas",
+            Sky: "Dangus",
+            Azure: "Žydra",
+            Periwinkle: "Melsvai violetinė",
+            Indigo: "Indigo",
+            Blush: "Rausva",
+            "Rose Red": "Rožių raudona",
+            "Coral Pink": "Koralų rožinė",
+            Coral: "Koralinė",
+            Flame: "Liepsna",
+            Ember: "Žarija",
+            Seedling: "Daigelis",
+            Meadow: "Pieva",
+            Mint: "Mėta",
+            Leaf: "Lapas",
+            Forest: "Miškas",
+            Pine: "Pušis",
+            Mist: "Migla",
+            Lavender: "Levanda",
+            Orchid: "Orchidėja",
+            Violet: "Violetinė",
+            Amethyst: "Ametistas",
+            "Deep Violet": "Tamsi violetinė",
+            Glow: "Švytėjimas",
+            Butter: "Sviestas",
+            "Warm Gold": "Šiltas auksas",
+            Gold: "Auksas",
+            Sun: "Saulė",
+            Peach: "Persikas",
+            Apricot: "Abrikosas",
+            "Golden Hour": "Auksinė valanda",
+            Sunset: "Saulėlydis",
+            Tangerine: "Mandarinas",
+            "Burnt Orange": "Deginta oranžinė",
+            Seafoam: "Jūros puta",
+            Aqua: "Akva",
+            Tide: "Potvynis",
+            Lagoon: "Lagūna",
+            Teal: "Melsvai žalia",
+            "Deep Teal": "Tamsi melsvai žalia",
+            Petal: "Žiedlapis",
+            Candy: "Saldainis",
+            Bubblegum: "Kramtomoji guma",
+            "Berry Pink": "Uogų rožinė",
+            Raspberry: "Avietė",
+            Wine: "Vynas",
+            Sand: "Smėlis",
+            "Clay Light": "Šviesus molis",
+            Ochre: "Ochra",
+            Bark: "Žievė",
+            Umber: "Umbra",
+            Amber: "Gintaras",
+            Clay: "Molis"
+        },
+        habitTemplates: {
+            "Wake up early": "Keltis anksti",
+            "Drink water": "Gerti vandenį",
+            "Make bed": "Pasikloti lovą",
+            "Morning stretch": "Rytinis tempimas",
+            "Read books": "Skaityti knygas",
+            "Daily Brain Exercise": "Kasdienė smegenų mankšta",
+            "Meditate daily": "Medituoti kasdien",
+            "Walk outside": "Pasivaikščioti lauke",
+            "Fishing": "Žvejyba",
+            "Exercise daily": "Sportuoti kasdien",
+            "Journal thoughts": "Rašyti mintis",
+            "Practice gratitude": "Praktikuoti dėkingumą",
+            "Eat slowly": "Valgyti lėtai",
+            "Plan tomorrow": "Planuoti rytojų",
+            "Limit sugar": "Riboti cukrų",
+            "Avoid soda": "Vengti limonado",
+            "Fasting": "Pasninkas",
+            "Breathe deeply": "Giliai kvėpuoti",
+            "Learn coding": "Mokytis programuoti",
+            "Practice English": "Mokytis anglų",
+            "Tidy room": "Susitvarkyti kambarį",
+            "Track spending": "Sekti išlaidas",
+            "Money": "Pinigai",
+            "Sleep earlier": "Eiti miegoti anksčiau",
+            "No scrolling": "Nescrollinti",
+            "No Shorts": "Jokių Shorts",
+            "Cook dinner": "Gaminti vakarienę",
+            "Check posture": "Patikrinti laikyseną",
+            "Wash dishes": "Išplauti indus",
+            "Floss teeth": "Valyti tarpdančius",
+            "Review goals": "Peržiūrėti tikslus",
+            "Help someone": "Kam nors padėti",
+            "Evening reflection": "Vakaro refleksija",
+            "Take vitamins": "Gerti vitaminus",
+            "Cold shower": "Šaltas dušas",
+            "Clean desk": "Sutvarkyti stalą",
+            "Study consistently": "Mokytis nuosekliai",
+            "Save money": "Taupyti pinigus",
+            "Listen podcasts": "Klausyti tinklalaidžių",
+            "Write ideas": "Rašyti idėjas",
+            "Daily prayer": "Kasdienė malda",
+            "Healthy breakfast": "Sveiki pusryčiai",
+            "Protein intake": "Baltymų kiekis",
+            "Screen break": "Pertrauka nuo ekrano",
+            "Call family": "Paskambinti šeimai",
+            "Practice patience": "Praktikuoti kantrybę",
+            "Declutter space": "Apsitvarkyti erdvę",
+            "Learn vocabulary": "Mokytis žodžių",
+            "Keep promises": "Laikytis pažadų",
+            "Early bedtime": "Ankstyvas miegas",
+            "No junkfood": "Jokio greito maisto",
+            "Smile often": "Dažniau šypsotis"
+        }
+    }
+};
+
+const messageKeyAliases = {
+    "Loading...": "loading",
+    "Signed in": "signedIn",
+    "Saved to Firebase": "statusSavedToFirebase",
+    "Saved locally only": "statusSavedLocallyOnly",
+    "Saved locally": "statusSavedLocally",
+    "Loaded local backup": "statusLoadedLocalBackup",
+    "Sign out failed": "toastSignOutFailed",
+    "Firebase sync failed": "toastFirebaseSyncFailed",
+    "Storage error": "toastStorageError",
+    "Already exists!": "toastAlreadyExists",
+    "Delete failed": "toastDeleteFailed",
+    "Deleted": "toastDeleted"
+};
+
+function normalizeLanguage(lang) {
+    return supportedLanguages.has(lang) ? lang : "en";
+}
+
+function getInitialLanguage() {
+    try {
+        const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+        const legacyLanguage = localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY);
+        const language = normalizeLanguage(savedLanguage || legacyLanguage);
+
+        if (!savedLanguage && legacyLanguage) {
+            localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+        }
+
+        return language;
+    } catch (error) {
+        return "en";
+    }
+}
+
+let currentLanguage = getInitialLanguage();
+
+function t(key, vars = {}) {
+    const source = translations[currentLanguage]?.[key] ?? translations.en[key] ?? key;
+    if (typeof source !== "string") return source;
+
+    return source.replace(/\{(\w+)\}/g, (_, name) => (
+        Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : ""
+    ));
+}
+
+function getLanguageLocale() {
+    return currentLanguage === "lt" ? "lt-LT" : "en-US";
+}
+
+function resolveMessageKey(keyOrText) {
+    return messageKeyAliases[keyOrText] || keyOrText;
+}
+
+function setTranslatedMessage(element, keyOrText = "", vars = {}) {
+    if (!element) return;
+
+    if (!keyOrText) {
+        element.textContent = "";
+        delete element.dataset.messageKey;
+        delete element.dataset.messageVars;
+        return;
+    }
+
+    const key = resolveMessageKey(keyOrText);
+    element.dataset.messageKey = key;
+    element.dataset.messageVars = JSON.stringify(vars);
+    element.textContent = t(key, vars);
+}
+
+function refreshTranslatedMessage(element) {
+    if (!element?.dataset.messageKey) return;
+
+    let vars = {};
+    try {
+        vars = JSON.parse(element.dataset.messageVars || "{}");
+    } catch (error) {
+        vars = {};
+    }
+
+    element.textContent = t(element.dataset.messageKey, vars);
+}
+
+function translateHabitTemplateName(template, lang = currentLanguage) {
+    return translations[lang]?.habitTemplates?.[template.name]
+        || translations.en.habitTemplates[template.name]
+        || template.name;
+}
+
+function isHabitTemplateDisplayName(name) {
+    if (!name) return false;
+
+    return habitTemplates.some(template => (
+        template.name.toLowerCase() === name.toLowerCase()
+        || Object.values(translations).some(language => (
+            language.habitTemplates?.[template.name]?.toLowerCase() === name.toLowerCase()
+        ))
+    ));
+}
+
+function translateColorGroupName(name) {
+    return translations[currentLanguage]?.colorGroups?.[name]
+        || translations.en.colorGroups[name]
+        || name;
+}
+
+function translateColorLabel(label) {
+    return translations[currentLanguage]?.colorLabels?.[label]
+        || translations.en.colorLabels[label]
+        || label;
+}
+
+function updateStaticLanguageText() {
+    document.documentElement.lang = currentLanguage;
+    document.title = t("appTitle");
+
+    document.querySelectorAll("[data-i18n]").forEach(element => {
+        element.textContent = t(element.dataset.i18n);
+    });
+
+    document.querySelectorAll("[data-i18n-placeholder]").forEach(element => {
+        element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
+    });
+
+    document.querySelectorAll("[data-i18n-aria-label]").forEach(element => {
+        element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
+    });
+
+    document.querySelectorAll("[data-i18n-title]").forEach(element => {
+        element.setAttribute("title", t(element.dataset.i18nTitle));
+    });
+}
+
+function updateLanguageControls() {
+    document.querySelectorAll(".lang-btn[data-lang], [data-lang-option]").forEach(button => {
+        const buttonLanguage = button.dataset.lang || button.dataset.langOption;
+        const isActive = buttonLanguage === currentLanguage;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+    });
+}
+
+function getLanguageFromButton(button) {
+    return button?.dataset.lang || button?.dataset.langOption || "en";
+}
+
+function updateCalendarWeekdays() {
+    const labels = translations[currentLanguage].weekdaysShort;
+    document.querySelectorAll(".calendar-weekdays span").forEach((span, index) => {
+        span.textContent = labels[index] || "";
+    });
+}
+
+function updateAuthModeCopy() {
+    authSubmit.textContent = t(authMode === "signup" ? "signUp" : "logIn");
+    updatePasswordToggleLabels();
+}
+
+function updateSessionUserCopy() {
+    sessionUser.innerText = currentUser
+        ? currentUser.displayName || currentUser.email || t("signedIn")
+        : "";
+}
+
+function setSyncStatus(keyOrText = "", vars = {}) {
+    setTranslatedMessage(syncStatus, keyOrText, vars);
+}
+
+function setEditColorStatus(keyOrText = "editColorSavedAccent", vars = {}) {
+    setTranslatedMessage(editColorStatus, keyOrText, vars);
+}
+
+function setAuthMessage(keyOrText = "", vars = {}) {
+    setTranslatedMessage(authMessage, keyOrText, vars);
+}
+
+function refreshTranslatedMessages() {
+    [syncStatus, editColorStatus, authMessage, toast].forEach(refreshTranslatedMessage);
+
+    if (!editColorStatus.dataset.messageKey) {
+        setEditColorStatus("editColorSavedAccent");
+    }
+}
+
+function refreshTemplateInputLanguage() {
+    if (modal.style.display !== "flex") return;
+    if (!isHabitTemplateDisplayName(inputName.value.trim())) return;
+
+    const template = habitTemplates[selectedTemplateIndex] || habitTemplates[0];
+    inputName.value = translateHabitTemplateName(template);
+}
+
+function updateLanguage(lang, options = {}) {
+    const nextLanguage = normalizeLanguage(lang);
+    const shouldPersist = options.persist !== false;
+    const shouldRefreshDynamic = options.refreshDynamic !== false;
+
+    currentLanguage = nextLanguage;
+
+    if (shouldPersist) {
+        try {
+            localStorage.setItem(LANGUAGE_STORAGE_KEY, currentLanguage);
+            localStorage.removeItem(LEGACY_LANGUAGE_STORAGE_KEY);
+        } catch (error) {
+            console.warn("Language preference could not be saved:", error);
+        }
+    }
+
+    updateStaticLanguageText();
+    updateLanguageControls();
+    updateCalendarWeekdays();
+    updateAuthModeCopy();
+    updateSessionUserCopy();
+    refreshTranslatedMessages();
+    refreshTemplateInputLanguage();
+
+    if (!shouldRefreshDynamic) return;
+
+    createIcons();
+    createColors(colorPalette);
+    createColors(editColorPalette);
+
+    if (!appShell.hidden) {
+        render();
+    }
+
+    if (calOverlay.style.display === "flex") {
+        renderCalendar();
+        updateYearlyProgress();
+    }
+}
+
 const sContainer = document.getElementById("streaks-container");
 const modal = document.getElementById("modal-overlay");
 const calOverlay = document.getElementById("calendar-overlay");
@@ -272,8 +959,8 @@ const authSubmit = document.getElementById("auth-submit");
 const sessionUser = document.getElementById("session-user");
 const signOutBtn = document.getElementById("sign-out-btn");
 
-function showToast(msg) {
-    toast.innerText = msg;
+function showToast(messageKey, vars = {}) {
+    setTranslatedMessage(toast, messageKey, vars);
     toast.style.opacity = "1";
 
     clearTimeout(showToast.timeoutId);
@@ -348,15 +1035,15 @@ function scheduleHabitColorSync(streak) {
         try {
             await syncHabitToFirebase(streak, user);
             if (currentUser?.uid === user.uid) {
-                saveHabits("Saved to Firebase");
-                if (editColorStatus) editColorStatus.textContent = "Saved accent";
+                saveHabits("statusSavedToFirebase");
+                setEditColorStatus("editColorSavedAccent");
             }
         } catch (error) {
             console.error("Firebase color sync error:", error);
             if (currentUser?.uid === user.uid) {
-                saveHabits("Saved locally only");
-                if (editColorStatus) editColorStatus.textContent = "Saved locally";
-                showToast("Firebase sync failed");
+                saveHabits("statusSavedLocallyOnly");
+                setEditColorStatus("editColorSavedLocally");
+                showToast("toastFirebaseSyncFailed");
             }
         }
     }, 350);
@@ -368,7 +1055,7 @@ function updateActiveHabitColor(color) {
 
     streak.color = color;
     saveRecentColor(color);
-    saveHabits("Saved locally");
+    saveHabits("statusSavedLocally");
     render();
     renderCalendar();
     updateYearlyProgress();
@@ -376,7 +1063,7 @@ function updateActiveHabitColor(color) {
     renderRecentColors();
     updateColorSelection();
     updateColorPreview();
-    if (editColorStatus) editColorStatus.textContent = "Saving...";
+    setEditColorStatus("editColorSaving");
     scheduleHabitColorSync(streak);
 }
 
@@ -483,9 +1170,8 @@ function setAuthMode(mode) {
     authConfirmPassword.type = "password";
     authPassword.autocomplete = mode === "signup" ? "new-password" : "current-password";
     authPassword.type = "password";
-    authSubmit.textContent = mode === "signup" ? "Sign up" : "Log in";
-    authMessage.textContent = "";
-    updatePasswordToggleLabels();
+    updateAuthModeCopy();
+    setAuthMessage("");
 
     document.querySelectorAll("[data-auth-mode]").forEach(button => {
         button.classList.toggle("active", button.dataset.authMode === mode);
@@ -504,10 +1190,13 @@ function updatePasswordToggleLabels() {
     document.querySelectorAll("[data-password-toggle]").forEach(button => {
         const input = document.getElementById(button.dataset.passwordToggle);
         const isVisible = input?.type === "text";
-        const label = button.dataset.passwordLabel || "password";
+        const label = button.dataset.passwordLabelKey
+            ? t(button.dataset.passwordLabelKey)
+            : button.dataset.passwordLabel || t("passwordLabel");
+        const action = t(isVisible ? "hide" : "show");
 
-        button.textContent = isVisible ? "Hide" : "Show";
-        button.setAttribute("aria-label", `${isVisible ? "Hide" : "Show"} ${label}`);
+        button.textContent = action;
+        button.setAttribute("aria-label", `${action} ${label}`);
         button.setAttribute("aria-pressed", String(isVisible));
     });
 }
@@ -521,9 +1210,9 @@ function togglePasswordVisibility(targetId) {
 }
 
 function validateSignupPasswords(password, confirmPassword) {
-    if (!password) return "Enter a password.";
-    if (!confirmPassword) return "Confirm your password.";
-    if (password !== confirmPassword) return "Passwords do not match";
+    if (!password) return "authEnterPassword";
+    if (!confirmPassword) return "authConfirmPassword";
+    if (password !== confirmPassword) return "authPasswordsDoNotMatch";
     return "";
 }
 
@@ -531,22 +1220,24 @@ function getAuthErrorMessage(error) {
     const code = error?.code || "";
     const detail = code ? ` (${code})` : "";
 
-    if (code.includes("email-already-in-use")) return `This email already has an account${detail}.`;
-    if (code.includes("invalid-email")) return `Enter a valid email address${detail}.`;
-    if (code.includes("weak-password")) return `Use at least 6 password characters${detail}.`;
+    if (code.includes("email-already-in-use")) return { key: "authEmailAlreadyInUse", vars: { detail } };
+    if (code.includes("invalid-email")) return { key: "authInvalidEmail", vars: { detail } };
+    if (code.includes("weak-password")) return { key: "authWeakPassword", vars: { detail } };
     if (code.includes("operation-not-allowed") || code.includes("admin-restricted-operation")) {
-        return `Enable Email/Password sign-in in Firebase Auth${detail}.`;
+        return { key: "authEnableEmailPassword", vars: { detail } };
     }
-    if (code.includes("configuration-not-found")) return `Enable Firebase Authentication for this project${detail}.`;
-    if (code.includes("unauthorized-domain")) return `Add this domain in Firebase Auth authorized domains${detail}.`;
-    if (code.includes("network-request-failed")) return `Check your internet connection${detail}.`;
-    if (code.includes("too-many-requests")) return `Too many attempts. Try again later${detail}.`;
-    if (code.includes("permission-denied")) return `Account created, but Firestore rules need updating${detail}.`;
+    if (code.includes("configuration-not-found")) return { key: "authEnableFirebaseAuth", vars: { detail } };
+    if (code.includes("unauthorized-domain")) return { key: "authUnauthorizedDomain", vars: { detail } };
+    if (code.includes("network-request-failed")) return { key: "authNetworkFailed", vars: { detail } };
+    if (code.includes("too-many-requests")) return { key: "authTooManyRequests", vars: { detail } };
+    if (code.includes("permission-denied")) return { key: "authPermissionDenied", vars: { detail } };
     if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found")) {
-        return `Check your email and password${detail}.`;
+        return { key: "authCheckCredentials", vars: { detail } };
     }
 
-    return error?.message || `Authentication failed${detail}.`;
+    return error?.message
+        ? { key: "rawMessage", vars: { message: error.message } }
+        : { key: "authFailed", vars: { detail } };
 }
 
 async function saveUserProfile(user, extra = {}) {
@@ -571,20 +1262,20 @@ async function handleAuthSubmit(event) {
     const name = authName.value.trim();
 
     if (authMode === "signup" && !name) {
-        authMessage.textContent = "Enter a name.";
+        setAuthMessage("authEnterName");
         return;
     }
 
     if (authMode === "signup") {
         const passwordError = validateSignupPasswords(password, confirmPassword);
         if (passwordError) {
-            authMessage.textContent = passwordError;
+            setAuthMessage(passwordError);
             return;
         }
     }
 
     setAuthBusy(true);
-    authMessage.textContent = "";
+    setAuthMessage("");
 
     try {
         if (authMode === "signup") {
@@ -604,7 +1295,8 @@ async function handleAuthSubmit(event) {
         }
     } catch (error) {
         console.error("Auth error:", error);
-        authMessage.textContent = getAuthErrorMessage(error);
+        const authError = getAuthErrorMessage(error);
+        setAuthMessage(authError.key, authError.vars);
     } finally {
         setAuthBusy(false);
     }
@@ -615,16 +1307,16 @@ async function handleSignOut() {
         await signOut(auth);
     } catch (error) {
         console.error("Sign out error:", error);
-        showToast("Sign out failed");
+        showToast("toastSignOutFailed");
     }
 }
 
-function saveHabits(statusText = "Saved locally") {
+function saveHabits(statusText = "statusSavedLocally") {
     if (currentUser) {
         localStorage.setItem(getHabitsStorageKey(), JSON.stringify(streaks));
     }
 
-    syncStatus.innerText = statusText;
+    setSyncStatus(statusText);
 }
 
 function loadHabitsFromLocal(uid = currentUser?.uid) {
@@ -640,7 +1332,7 @@ function loadHabitsFromLocal(uid = currentUser?.uid) {
         streaks = parsed.map(item => normalizeHabit(item, item.firebaseDocId));
     } catch (error) {
         streaks = [];
-        showToast("Storage error");
+        showToast("toastStorageError");
     }
 }
 
@@ -705,8 +1397,8 @@ async function loadHabitsFromFirebase(user = requireCurrentUser()) {
         if (currentUser?.uid !== user.uid) return;
         loadHabitsFromLocal(user.uid);
         render();
-        saveHabits("Loaded local backup");
-        showToast("Loaded local backup");
+        saveHabits("statusLoadedLocalBackup");
+        showToast("statusLoadedLocalBackup");
     }
 }
 
@@ -935,30 +1627,30 @@ function getInsightMessages(streak, isDone) {
     const messages = [];
 
     if (isDone) {
-        messages.push("Done");
+        messages.push(t("insightDone"));
         if (week.days > 0) {
             if (week.count === week.days) {
-                messages.push("Done - Perfect week");
+                messages.push(t("insightDonePerfectWeek"));
             } else if (week.count > 0) {
-                messages.push(`Done - Week ${week.count}/${week.days}`);
+                messages.push(t("insightDoneWeek", { count: week.count, days: week.days }));
             } else {
-                messages.push("Done - On track");
+                messages.push(t("insightDoneOnTrack"));
             }
         } else {
-            messages.push("Done - Great job");
+            messages.push(t("insightDoneGreatJob"));
         }
     } else {
         if (didYesterday) {
-            messages.push("Start");
+            messages.push(t("insightStart"));
         } else {
-            messages.push("Keep it going");
+            messages.push(t("insightKeepGoing"));
         }
 
         if (week.days > 0) {
             if (week.count >= Math.max(1, week.days - 1)) {
-                messages.push("Almost best");
+                messages.push(t("insightAlmostBest"));
             } else {
-                messages.push(`Week ${week.count}/${week.days}`);
+                messages.push(t("insightWeek", { count: week.count, days: week.days }));
             }
         }
     }
@@ -1108,7 +1800,10 @@ function addCompletionRewardToArea(area, currentStreak, colorRgb) {
 
     const reward = document.createElement("span");
     reward.className = "streak-dots-reward";
-    reward.setAttribute("aria-label", `${currentStreak} day${currentStreak === 1 ? "" : "s"} current streak`);
+    reward.setAttribute("aria-label", t("currentStreakAria", {
+        count: currentStreak,
+        plural: currentStreak === 1 ? "" : "s"
+    }));
     reward.textContent = `🔥 ${currentStreak}`;
 
     const bubble = area.closest(".bubble");
@@ -1141,7 +1836,7 @@ function render() {
     sortHabitsByPerformance();
     sContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
-    const currentMonthLabel = new Date().toLocaleString(undefined, { month: "short" });
+    const currentMonthLabel = new Date().toLocaleString(getLanguageLocale(), { month: "short" });
 
     streaks.forEach(streak => {
         const isDone = (streak.history || []).includes(todayStr);
@@ -1161,7 +1856,7 @@ function render() {
             const dotTextColor = getReadableTextColor(dotBackground);
 
             return `
-                <span class="streak-dot-mini${day.completed ? " filled" : ""}${day.isToday ? " is-today" : ""}${streak.id === recentCompletionId && day.isToday && day.completed ? " recent-hit" : ""}" style="--dot-text-color: ${dotTextColor};" aria-label="${day.dateKey} ${day.completed ? "completed" : "not completed"}">${day.dayNumber}</span>
+                <span class="streak-dot-mini${day.completed ? " filled" : ""}${day.isToday ? " is-today" : ""}${streak.id === recentCompletionId && day.isToday && day.completed ? " recent-hit" : ""}" style="--dot-text-color: ${dotTextColor};" aria-label="${day.dateKey} ${day.completed ? t("completed") : t("notCompleted")}">${day.dayNumber}</span>
             `;
         }).join("");
 
@@ -1200,6 +1895,16 @@ function render() {
             </div>
         `;
 
+        const deleteButton = card.querySelector(".delete-btn");
+        if (deleteButton) {
+            deleteButton.setAttribute("aria-label", t("delete"));
+            deleteButton.innerHTML = "&times;";
+        }
+        card.querySelector(".streak-dots")?.setAttribute("aria-label", t("lastSevenDaysActivity"));
+        card.querySelector(".best-label")?.setAttribute("aria-label", t("bestStreakAria", {
+            count: bestStreak,
+            plural: bestStreak === 1 ? "" : "s"
+        }));
         card.querySelector(".streak-count")?.after(card.querySelector(".best-label"));
 
         insightMessagesById[streak.id] = getInsightMessages(streak, isDone);
@@ -1212,10 +1917,10 @@ function render() {
     addCard.className = "streak-card";
     addCard.innerHTML = `
         <div class="ring-wrapper">
-            <div class="bubble add-bubble" data-action="add">+</div>
+            <div class="bubble add-bubble" data-action="add" role="button" aria-label="${t("addHabit")}">+</div>
         </div>
         <div class="streak-identity" style="opacity:0.5; border-color: transparent">
-            <div class="streak-name">New</div>
+            <div class="streak-name">${t("new")}</div>
         </div>
     `;
     sContainer.appendChild(addCard);
@@ -1257,7 +1962,7 @@ function openAddModal() {
     modal.style.display = "flex";
     const defaultTemplate = habitTemplates[0];
     selectedTemplateIndex = 0;
-    inputName.value = defaultTemplate.name;
+    inputName.value = translateHabitTemplateName(defaultTemplate);
     selEmoji = defaultTemplate.emoji;
     suggestedColor = getSuggestedColorForTemplate(defaultTemplate);
     userHasPickedColor = false;
@@ -1277,7 +1982,7 @@ function renderCalendar() {
     if (!streak) return;
 
     document.getElementById("cal-title").innerText = streak.name;
-    document.getElementById("cal-month").innerText = calDate.toLocaleString("en-US", {
+    document.getElementById("cal-month").innerText = calDate.toLocaleString(getLanguageLocale(), {
         month: "long",
         year: "numeric"
     });
@@ -1352,7 +2057,7 @@ async function toggleDay(id, dStr) {
     streak.history = history;
     sortHabitsByPerformance();
 
-    saveHabits("Saved locally");
+    saveHabits("statusSavedLocally");
     render();
     renderCalendar();
     updateYearlyProgress();
@@ -1365,13 +2070,13 @@ async function toggleDay(id, dStr) {
     try {
         await syncHabitToFirebase(streak, user);
         if (currentUser?.uid === user.uid) {
-            saveHabits("Saved to Firebase");
+            saveHabits("statusSavedToFirebase");
         }
     } catch (error) {
         console.error("Firebase calendar sync error:", error);
         if (currentUser?.uid === user.uid) {
-            saveHabits("Saved locally only");
-            showToast("Firebase sync failed");
+            saveHabits("statusSavedLocallyOnly");
+            showToast("toastFirebaseSyncFailed");
         }
     }
 }
@@ -1394,10 +2099,10 @@ function updateYearlyProgress() {
     const firstDay = new Date(currentYear, 0, 1);
     const leadingEmptyCells = (firstDay.getDay() + 6) % 7;
     const totalWeekColumns = Math.ceil((leadingEmptyCells + daysInYear) / 7);
-    const monthShortNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthShortNames = translations[currentLanguage].monthsShort;
 
     document.getElementById("yearly-percent").innerText = `${percent}%`;
-    document.getElementById("yearly-count").innerText = `${count} of ${daysInYear} days`;
+    document.getElementById("yearly-count").innerText = t("yearlyCount", { count, days: daysInYear });
 
     heatmap.innerHTML = "";
     monthLabels.innerHTML = "";
@@ -1431,7 +2136,10 @@ function updateYearlyProgress() {
         const cell = document.createElement("span");
 
         cell.className = `yearly-heatmap-cell${isCompleted ? " completed" : ""}`;
-        cell.title = `${dateKey}: ${isCompleted ? "completed" : "not completed"}`;
+        cell.title = t("heatmapCell", {
+            date: dateKey,
+            status: isCompleted ? t("completed") : t("notCompleted")
+        });
         cell.setAttribute("aria-label", cell.title);
         heatmap.appendChild(cell);
     }
@@ -1496,14 +2204,14 @@ function updateColorPreview() {
 }
 
 
-function createColorButton(color, display = color, label = "Color") {
+function createColorButton(color, display = color, label = "") {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "color-option";
     item.dataset.color = color;
     item.style.background = display;
     item.style.setProperty("--swatch-rgb", hexToRgb(color));
-    item.setAttribute("aria-label", label);
+    item.setAttribute("aria-label", label || t("color"));
 
     item.addEventListener("click", event => {
         event.stopPropagation();
@@ -1529,7 +2237,7 @@ function renderRecentColors() {
 
         recentColors.forEach(color => {
             const option = getColorOption(color);
-            recentRow.appendChild(createColorButton(color, option?.display || color, "Recent color"));
+            recentRow.appendChild(createColorButton(color, option?.display || color, t("recentColor")));
         });
     });
 
@@ -1545,6 +2253,7 @@ function createIcons() {
         item.className = "icon-option";
         item.dataset.templateIndex = String(index);
         item.innerText = template.emoji;
+        item.setAttribute("aria-label", `${t("chooseIcon")}: ${translateHabitTemplateName(template)}`);
 
         if (isCompoundEmoji(template.emoji)) {
             item.classList.add("is-compound");
@@ -1567,10 +2276,10 @@ function createIcons() {
             suggestedColor = getSuggestedColorForTemplate(template);
 
             const currentName = inputName.value.trim();
-            const isTemplateName = habitTemplates.some(habit => habit.name.toLowerCase() === currentName.toLowerCase());
+            const isTemplateName = isHabitTemplateDisplayName(currentName);
 
             if (currentName === "" || isTemplateName) {
-                inputName.value = template.name;
+                inputName.value = translateHabitTemplateName(template);
             }
 
             updateIconSelection(item);
@@ -1592,7 +2301,7 @@ function createColors(palette = colorPalette) {
     const closeButton = document.createElement("button");
     closeButton.type = "button";
     closeButton.className = "color-popover-close";
-    closeButton.setAttribute("aria-label", "Close color picker");
+    closeButton.setAttribute("aria-label", t("closeColorPicker"));
     closeButton.textContent = "x";
     closeButton.addEventListener("click", event => {
         event.stopPropagation();
@@ -1609,8 +2318,8 @@ function createColors(palette = colorPalette) {
             </div>
         </div>
         <div class="color-preview-copy">
-            <div class="color-preview-title">Accent</div>
-            <div class="color-preview-subtitle">Selected color</div>
+            <div class="color-preview-title">${t("accent")}</div>
+            <div class="color-preview-subtitle">${t("selectedColor")}</div>
         </div>
     `;
     palette.appendChild(preview);
@@ -1618,7 +2327,7 @@ function createColors(palette = colorPalette) {
     const recentSection = document.createElement("div");
     recentSection.className = "color-section color-section-recent";
     recentSection.innerHTML = `
-        <div class="color-section-label">Recent</div>
+        <div class="color-section-label">${t("recent")}</div>
         <div class="color-row recent-colors-row"></div>
     `;
     palette.appendChild(recentSection);
@@ -1630,11 +2339,11 @@ function createColors(palette = colorPalette) {
 
         section.className = "color-section";
         label.className = "color-section-label";
-        label.textContent = group.name;
+        label.textContent = translateColorGroupName(group.name);
         row.className = "color-row";
 
         group.colors.forEach(color => {
-            row.appendChild(createColorButton(color.value, color.display, color.label));
+            row.appendChild(createColorButton(color.value, color.display, translateColorLabel(color.label)));
         });
 
         section.appendChild(label);
@@ -1693,7 +2402,7 @@ async function addHabit() {
     if (!user || !name) return;
 
     if (streaks.some(streak => streak.name.toLowerCase() === name.toLowerCase())) {
-        showToast("Already exists!");
+        showToast("toastAlreadyExists");
         return;
     }
 
@@ -1717,7 +2426,7 @@ async function addHabit() {
 
         streaks.push(newHabit);
         sortHabitsByPerformance();
-        saveHabits("Saved to Firebase");
+        saveHabits("statusSavedToFirebase");
         render();
 
         modal.style.display = "none";
@@ -1725,21 +2434,21 @@ async function addHabit() {
         inputName.value = "";
 
         console.log("FIREBASE SAVED OK, doc id:", habitId);
-        showToast("Saved to Firebase 🔥");
+        showToast("toastSavedToFirebase");
     } catch (error) {
         console.error("Firestore save error full:", error);
         if (currentUser?.uid !== user.uid) return;
 
         streaks.push(newHabit);
         sortHabitsByPerformance();
-        saveHabits("Saved locally only");
+        saveHabits("statusSavedLocallyOnly");
         render();
 
         modal.style.display = "none";
         hideColorPopover(colorPalette);
         inputName.value = "";
 
-        showToast("Saved locally only");
+        showToast("toastSavedLocallyOnly");
     }
 }
 
@@ -1757,7 +2466,7 @@ async function deleteHabit() {
         if (currentUser?.uid !== user.uid) return;
     } catch (error) {
         console.error("Firebase delete error:", error);
-        showToast("Delete failed");
+        showToast("toastDeleteFailed");
         return;
     }
 
@@ -1770,10 +2479,10 @@ async function deleteHabit() {
 
     streakToDeleteId = null;
     sortHabitsByPerformance();
-    saveHabits("Saved to Firebase");
+    saveHabits("statusSavedToFirebase");
     render();
     deleteOverlay.style.display = "none";
-    showToast("Deleted");
+    showToast("toastDeleted");
 }
 
 function bindEvents() {
@@ -1782,6 +2491,15 @@ function bindEvents() {
 
     authForm.addEventListener("submit", handleAuthSubmit);
     signOutBtn.addEventListener("click", handleSignOut);
+    document.querySelectorAll(".language-switcher").forEach(switcher => {
+        switcher.addEventListener("click", event => {
+            const button = event.target.closest(".lang-btn[data-lang], [data-lang-option]");
+            if (!button || !switcher.contains(button)) return;
+
+            event.preventDefault();
+            updateLanguage(getLanguageFromButton(button));
+        });
+    });
     document.querySelectorAll("[data-auth-mode]").forEach(button => {
         button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
     });
@@ -1934,8 +2652,8 @@ function showSignedOutScreen() {
     currentUser = null;
     closeAllOverlays();
     resetHabitState();
-    syncStatus.innerText = "";
-    sessionUser.innerText = "";
+    setSyncStatus("");
+    updateSessionUserCopy();
     authPassword.value = "";
     authScreen.hidden = false;
     appShell.hidden = true;
@@ -1951,8 +2669,8 @@ async function showSignedInScreen(user) {
     currentUser = user;
     authScreen.hidden = true;
     appShell.hidden = false;
-    sessionUser.innerText = user.displayName || user.email || "Signed in";
-    syncStatus.innerText = "Loading...";
+    updateSessionUserCopy();
+    setSyncStatus("loading");
     renderRecentColors();
     setLoadingVisible(true);
 
@@ -1969,8 +2687,8 @@ async function showSignedInScreen(user) {
         if (currentUser?.uid !== user.uid) return;
         loadHabitsFromLocal(user.uid);
         render();
-        saveHabits("Loaded local backup");
-        showToast("Loaded local backup");
+        saveHabits("statusLoadedLocalBackup");
+        showToast("statusLoadedLocalBackup");
     } finally {
         if (currentUser?.uid === user.uid) {
             setLoadingVisible(false);
@@ -1997,6 +2715,7 @@ function init() {
     mountColorPopover(colorPalette);
     mountColorPopover(editColorPalette);
     bindEvents();
+    updateLanguage(currentLanguage, { persist: false, refreshDynamic: false });
     watchAuthState();
 }
 

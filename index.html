@@ -28,38 +28,40 @@
     <link rel="apple-touch-startup-image" href="icons/apple-splash-828x1792.png?v=6" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="icons/apple-splash-1242x2208.png?v=6" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="icons/apple-splash-750x1334.png?v=6" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=lang-2">
+    <link rel="stylesheet" href="language-switcher.css?v=1">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script type="module" src="script.js?v=auth-4"></script>
+    <script type="module" src="script.js?v=lang-2"></script>
+    <script src="language-switcher.js?v=1" defer></script>
 </head>
 <body>
 
     <div id="loading-screen" class="loading-screen">
         <div class="spinner"></div>
-        <div style="font-weight: 800; color: var(--sky-blue); font-size: 0.85rem;">Loading...</div>
+        <div style="font-weight: 800; color: var(--sky-blue); font-size: 0.85rem;" data-i18n="loading">Loading...</div>
     </div>
 
     <section id="auth-screen" class="auth-screen" hidden>
         <form id="auth-form" class="auth-panel">
-            <h1>My Habits</h1>
-            <div class="auth-mode-tabs" role="tablist" aria-label="Authentication mode">
-                <button type="button" class="auth-mode-btn active" data-auth-mode="login">Log in</button>
-                <button type="button" class="auth-mode-btn" data-auth-mode="signup">Sign up</button>
+            <h1 data-i18n="myHabits">My Habits</h1>
+            <div class="auth-mode-tabs" role="tablist" aria-label="Authentication mode" data-i18n-aria-label="authMode">
+                <button type="button" class="auth-mode-btn active" data-auth-mode="login" data-i18n="logIn">Log in</button>
+                <button type="button" class="auth-mode-btn" data-auth-mode="signup" data-i18n="signUp">Sign up</button>
             </div>
-            <input type="text" id="auth-name" placeholder="Name" autocomplete="name" maxlength="40" hidden>
-            <input type="email" id="auth-email" placeholder="Email" autocomplete="email" required>
+            <input type="text" id="auth-name" placeholder="Name" data-i18n-placeholder="name" autocomplete="name" maxlength="40" hidden>
+            <input type="email" id="auth-email" placeholder="Email" data-i18n-placeholder="email" autocomplete="email" required>
             <div class="auth-password-field">
-                <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" minlength="6" required>
-                <button type="button" class="password-toggle" data-password-toggle="auth-password" data-password-label="password" aria-label="Show password">Show</button>
+                <input type="password" id="auth-password" placeholder="Password" data-i18n-placeholder="password" autocomplete="current-password" minlength="6" required>
+                <button type="button" class="password-toggle" data-password-toggle="auth-password" data-password-label-key="passwordLabel" aria-label="Show password">Show</button>
             </div>
             <div class="auth-password-field" id="auth-confirm-wrap" hidden>
-                <input type="password" id="auth-confirm-password" placeholder="Confirm password" autocomplete="new-password" minlength="6">
-                <button type="button" class="password-toggle" data-password-toggle="auth-confirm-password" data-password-label="confirm password" aria-label="Show confirm password">Show</button>
+                <input type="password" id="auth-confirm-password" placeholder="Confirm password" data-i18n-placeholder="confirmPassword" autocomplete="new-password" minlength="6">
+                <button type="button" class="password-toggle" data-password-toggle="auth-confirm-password" data-password-label-key="confirmPasswordLabel" aria-label="Show confirm password">Show</button>
             </div>
             <div id="auth-message" class="auth-message" role="status" aria-live="polite"></div>
             <button type="submit" id="auth-submit" class="modal-btn save-btn">Log in</button>
@@ -67,16 +69,22 @@
     </section>
 
     <div id="app-shell" class="container" hidden>
-        <header><h1>My Habits</h1></header>
+        <header><h1 data-i18n="myHabits">My Habits</h1></header>
         <div class="session-row">
             <div class="session-user" id="session-user"></div>
-            <button type="button" class="sign-out-btn" id="sign-out-btn">Sign out</button>
+            <div class="session-actions">
+                <div class="language-switcher" role="group" aria-label="Language switcher" data-i18n-aria-label="language">
+                    <button type="button" class="lang-btn active" data-lang="en" aria-label="English" aria-pressed="true" data-i18n-aria-label="languageEnglish">EN</button>
+                    <button type="button" class="lang-btn" data-lang="lt" aria-label="Lithuanian" aria-pressed="false" data-i18n-aria-label="languageLithuanian">LT</button>
+                </div>
+                <button type="button" class="sign-out-btn" id="sign-out-btn" data-i18n="signOut">Sign out</button>
+            </div>
         </div>
         <div class="sync-status" id="sync-status"></div>
 
         <div class="progress-container">
             <div class="progress-text">
-                <span>Daily Progress</span>
+                <span data-i18n="dailyProgress">Daily Progress</span>
                 <span id="progress-text">0/0</span>
             </div>
             <div class="progress-bar-bg">
@@ -89,30 +97,30 @@
 
     <div id="modal-overlay" class="overlay">
         <div class="modal">
-            <h2 style="margin-bottom: 12px; color: var(--sky-blue); font-size: 1.2rem;">New Habit</h2>
+            <h2 style="margin-bottom: 12px; color: var(--sky-blue); font-size: 1.2rem;" data-i18n="newHabit">New Habit</h2>
             <div class="icon-selector" id="icon-selector"></div>
-            <input type="text" id="new-streak-name" placeholder="Habit Name" maxlength="20">
+            <input type="text" id="new-streak-name" placeholder="Habit Name" data-i18n-placeholder="habitName" maxlength="20">
             <div class="color-picker-wrapper">
                 <div class="rainbow-btn" id="rainbow-trigger"><span>🎨</span></div>
-                <input type="color" id="custom-color-input" class="custom-color-input" value="#63b3ed" aria-label="Choose custom color">
+                <input type="color" id="custom-color-input" class="custom-color-input" value="#63b3ed" aria-label="Choose custom color" data-i18n-aria-label="chooseCustomColor">
                 <div class="color-popover" id="color-palette" data-mode="create"></div>
             </div>
-            <button class="modal-btn save-btn" id="confirm-add">Create</button>
-            <button class="modal-btn cancel-btn" id="close-modal">Cancel</button>
+            <button class="modal-btn save-btn" id="confirm-add" data-i18n="create">Create</button>
+            <button class="modal-btn cancel-btn" id="close-modal" data-i18n="cancel">Cancel</button>
         </div>
     </div>
 
     <div id="calendar-overlay" class="overlay">
         <div class="modal">
-            <h2 id="cal-title" style="margin-bottom: 8px; font-size: 1.1rem;">Habit</h2>
+            <h2 id="cal-title" style="margin-bottom: 8px; font-size: 1.1rem;" data-i18n="habit">Habit</h2>
             <div class="edit-color-panel">
                 <div class="edit-color-copy">
-                    <span>Color</span>
+                    <span data-i18n="color">Color</span>
                     <small id="edit-color-status">Saved accent</small>
                 </div>
                 <div class="color-picker-wrapper edit-color-wrapper">
-                    <button type="button" class="rainbow-btn edit-color-trigger" id="edit-color-trigger" aria-label="Change habit color"><span>🎨</span></button>
-                    <input type="color" id="edit-custom-color-input" class="custom-color-input" value="#63b3ed" aria-label="Choose habit color">
+                    <button type="button" class="rainbow-btn edit-color-trigger" id="edit-color-trigger" aria-label="Change habit color" data-i18n-aria-label="changeHabitColor"><span>🎨</span></button>
+                    <input type="color" id="edit-custom-color-input" class="custom-color-input" value="#63b3ed" aria-label="Choose habit color" data-i18n-aria-label="chooseHabitColor">
                     <div class="color-popover" id="edit-color-palette" data-mode="edit"></div>
                 </div>
             </div>
@@ -129,32 +137,32 @@
 
             <div class="yearly-stats-box">
                 <div class="yearly-stats-header">
-                    <span>Yearly Progress</span>
+                    <span data-i18n="yearlyProgress">Yearly Progress</span>
                     <span id="yearly-percent">0%</span>
                 </div>
-                <div class="yearly-heatmap-scroll" aria-label="Yearly habit activity heatmap">
+                <div class="yearly-heatmap-scroll" aria-label="Yearly habit activity heatmap" data-i18n-aria-label="yearlyHeatmapLabel">
                     <div class="yearly-month-labels" id="yearly-month-labels"></div>
                     <div class="yearly-heatmap" id="yearly-heatmap"></div>
                 </div>
                 <div class="yearly-count-text" id="yearly-count">0 of 365 days</div>
             </div>
 
-            <button class="modal-btn cancel-btn" style="margin-top: 15px;" id="close-cal-modal">Close</button>
+            <button class="modal-btn cancel-btn" style="margin-top: 15px;" id="close-cal-modal" data-i18n="close">Close</button>
         </div>
     </div>
 
     <div id="delete-confirm-overlay" class="overlay">
         <div class="modal">
-            <h2 style="color: var(--danger); margin-bottom: 8px; font-size: 1.2rem;">Delete?</h2>
-            <p style="margin-bottom: 15px; opacity: 0.8; font-size: 0.85rem;">All history will be lost.</p>
+            <h2 style="color: var(--danger); margin-bottom: 8px; font-size: 1.2rem;" data-i18n="deleteQuestion">Delete?</h2>
+            <p style="margin-bottom: 15px; opacity: 0.8; font-size: 0.85rem;" data-i18n="deleteWarning">All history will be lost.</p>
             <div style="display: flex; gap: 8px;">
-                <button class="modal-btn cancel-btn" style="flex: 1;" id="cancel-delete">No</button>
-                <button class="modal-btn" style="flex: 1; background: var(--danger); color: white;" id="confirm-delete">Yes</button>
+                <button class="modal-btn cancel-btn" style="flex: 1;" id="cancel-delete" data-i18n="no">No</button>
+                <button class="modal-btn" style="flex: 1; background: var(--danger); color: white;" id="confirm-delete" data-i18n="yes">Yes</button>
             </div>
         </div>
     </div>
 
-    <div id="toast">Notification</div>
+    <div id="toast" data-i18n="notification">Notification</div>
 
 </body>
 </html>

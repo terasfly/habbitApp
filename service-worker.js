@@ -1,9 +1,11 @@
-const CACHE_NAME = "habit-app-v6";
+const CACHE_NAME = "habit-app-v9";
 const CORE_ASSETS = [
     "./",
     "index.html",
     "style.css",
+    "language-switcher.css",
     "script.js",
+    "language-switcher.js",
     "firebase.js",
     "manifest.json",
     "icons/apple-touch-icon.png",
@@ -64,6 +66,19 @@ self.addEventListener("fetch", event => {
     }
 
     if (!isSameOrigin || !CORE_ASSET_PATHS.has(requestUrl.pathname)) return;
+
+    if (requestUrl.pathname.endsWith(".js") || requestUrl.pathname.endsWith(".css")) {
+        event.respondWith(
+            fetch(request)
+                .then(response => {
+                    const copy = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+                    return response;
+                })
+                .catch(() => caches.match(request, { ignoreSearch: true }))
+        );
+        return;
+    }
 
     event.respondWith(
         caches.match(request, { ignoreSearch: true }).then(cachedResponse => {
