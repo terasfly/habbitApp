@@ -572,7 +572,7 @@ const translations = {
         authFailed: "Autentifikacija nepavyko{detail}.",
         rawMessage: "{message}",
         weekdaysShort: ["P", "A", "T", "K", "P", "Š", "S"],
-        monthsShort: ["Sau", "Vas", "Kov", "Bal", "Geg", "Bir", "Lie", "Rgp", "Rgs", "Spa", "Lap", "Gru"],
+        monthsShort: ["Sau", "Vas", "Kov", "Bal", "Geg", "Bir", "Lie", "Rug", "Rgs", "Spa", "Lap", "Gru"],
         colorGroups: {
             Cool: "Vėsios",
             Energy: "Energija",
@@ -745,6 +745,12 @@ function t(key, vars = {}) {
 
 function getLanguageLocale() {
     return currentLanguage === "lt" ? "lt-LT" : "en-US";
+}
+
+function getShortMonthLabel(date = new Date()) {
+    const monthIndex = date.getMonth();
+    const labels = translations[currentLanguage]?.monthsShort || translations.en.monthsShort;
+    return labels[monthIndex] || translations.en.monthsShort[monthIndex] || "";
 }
 
 function resolveMessageKey(keyOrText) {
@@ -1836,7 +1842,7 @@ function render() {
     sortHabitsByPerformance();
     sContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
-    const currentMonthLabel = new Date().toLocaleString(getLanguageLocale(), { month: "short" });
+    const currentMonthLabel = getShortMonthLabel();
 
     streaks.forEach(streak => {
         const isDone = (streak.history || []).includes(todayStr);
