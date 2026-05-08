@@ -36,6 +36,9 @@ let recentCompletionId = null;
 let currentUser = null;
 let authMode = "login";
 let appEventsBound = false;
+let authBubbleAnimationFrame = null;
+let authBubbleLastFrame = 0;
+let authBubbleBodies = [];
 
 function isTouchDevice() {
     return Boolean(
@@ -240,6 +243,21 @@ const colorSuggestions = [
     { keywords: ["food", "eat", "cook", "protein", "breakfast", "sugar", "soda"], color: "#f97316" },
     { keywords: ["water", "shower"], color: "#4fd1c5" },
     { keywords: ["money", "save", "spending"], color: "#48bb78" }
+];
+
+const AUTH_FLOATING_BUBBLE_COUNT = 6;
+const AUTH_BUBBLE_SPEED_MULTIPLIER = 2;
+const AUTH_BUBBLE_COLLISION_PADDING = 1.5;
+const AUTH_BUBBLE_MAX_FRAME_SECONDS = 0.034;
+const AUTH_BUBBLE_FIELD_GUARD = 10;
+
+const authFloatingBubbleLayout = [
+    { templateIndex: 0, left: "6%", top: "8%", size: "66px", baseVelocityX: 9.5, baseVelocityY: -7.5, rotation: -7, rotationVelocity: 1.2 },
+    { templateIndex: 4, right: "6%", top: "13%", size: "66px", baseVelocityX: -8.5, baseVelocityY: 8, rotation: 6, rotationVelocity: -1.3 },
+    { templateIndex: 1, left: "5%", bottom: "10%", size: "66px", baseVelocityX: 10, baseVelocityY: 6.5, rotation: 4, rotationVelocity: -1 },
+    { templateIndex: 19, right: "7%", bottom: "8%", size: "66px", baseVelocityX: -9, baseVelocityY: -7, rotation: -5, rotationVelocity: 1.1 },
+    { templateIndex: 30, left: "18%", top: "2%", size: "66px", baseVelocityX: 7.5, baseVelocityY: 10, rotation: 8, rotationVelocity: -1.4 },
+    { templateIndex: 37, right: "22%", bottom: "2%", size: "66px", baseVelocityX: -8, baseVelocityY: -9.5, rotation: -8, rotationVelocity: 1.5 }
 ];
 
 const LANGUAGE_STORAGE_KEY = "appLanguage";
@@ -954,6 +972,7 @@ const syncStatus = document.getElementById("sync-status");
 const loadingScreen = document.getElementById("loading-screen");
 const appShell = document.getElementById("app-shell");
 const authScreen = document.getElementById("auth-screen");
+const authFloatingBubbles = document.getElementById("auth-floating-bubbles");
 const authForm = document.getElementById("auth-form");
 const authName = document.getElementById("auth-name");
 const authEmail = document.getElementById("auth-email");
@@ -1709,6 +1728,339 @@ function parseHexColor(hex) {
 function hexToRgb(hex) {
     const { r, g, b } = parseHexColor(hex);
     return `${r}, ${g}, ${b}`;
+}
+
+function parseAuthBubbleOffset(value, axisSize) {
+    if (!value) return 0;
+
+    const text = String(value).trim();
+    const amount = Number.parseFloat(text);
+    if (Number.isNaN(amount)) return 0;
+
+    return text.endsWith("%") ? (amount / 100) * axisSize : amount;
+}
+
+function clampAuthBubblePosition(value, size, axisSize) {
+    return Math.max(0, Math.min(value, Math.max(0, axisSize - size)));
+}
+
+function getAuthBubbleInitialPosition(item, size, fieldWidth, fieldHeight) {
+    const x = item.left
+        ? parseAuthBubbleOffset(item.left, fieldWidth)
+        : fieldWidth - size - parseAuthBubbleOffset(item.right, fieldWidth);
+    const y = item.top
+        ? parseAuthBubbleOffset(item.top, fieldHeight)
+        : fieldHeight - size - parseAuthBubbleOffset(item.bottom, fieldHeight);
+
+    return {
+        x: clampAuthBubblePosition(x, size, fieldWidth),
+        y: clampAuthBubblePosition(y, size, fieldHeight)
+    };
+}
+
+function getAuthBubbleFieldSize() {
+    return {
+        width: authFloatingBubbles?.clientWidth || window.innerWidth,
+        height: authFloatingBubbles?.clientHeight || window.innerHeight
+    };
+}
+
+function isAuthFieldVisible(field) {
+    return Boolean(field && !field.hidden && field.getClientRects().length);
+}
+
+function getAuthBubbleInputGuardRect() {
+    if (!authFloatingBubbles || authScreen.hidden) return null;
+
+    const layerRect = authFloatingBubbles.getBoundingClientRect();
+    const visibleFields = [
+        authName,
+        authEmail,
+        authPassword,
+        authConfirmPassword
+    ].filter(isAuthFieldVisible);
+
+    if (!visibleFields.length) return null;
+
+    const fieldRects = visibleFields.map(field => (
+        field.closest(".auth-password-field") || field
+    ).getBoundingClientRect());
+
+    return {
+        left: Math.max(0, Math.min(...fieldRects.map(rect => rect.left)) - layerRect.left - AUTH_BUBBLE_FIELD_GUARD),
+        top: Math.max(0, Math.min(...fieldRects.map(rect => rect.top)) - layerRect.top - AUTH_BUBBLE_FIELD_GUARD),
+        right: Math.min(layerRect.width, Math.max(...fieldRects.map(rect => rect.right)) - layerRect.left + AUTH_BUBBLE_FIELD_GUARD),
+        bottom: Math.min(layerRect.height, Math.max(...fieldRects.map(rect => rect.bottom)) - layerRect.top + AUTH_BUBBLE_FIELD_GUARD)
+    };
+}
+
+function applyAuthBubbleTransforms() {
+    authBubbleBodies.forEach(body => {
+        body.element.style.transform = `translate3d(${body.x.toFixed(2)}px, ${body.y.toFixed(2)}px, 0) rotate(${body.rotation.toFixed(2)}deg)`;
+    });
+}
+
+function stabilizeAuthBubbleSpeed(body) {
+    const speed = Math.hypot(body.vx, body.vy);
+
+    if (speed <= 0) {
+        body.vx = body.baseSpeed;
+        body.vy = 0;
+        return;
+    }
+
+    const minSpeed = body.baseSpeed * 0.72;
+    const maxSpeed = body.baseSpeed * 1.28;
+    if (speed >= minSpeed && speed <= maxSpeed) return;
+
+    const nextSpeed = Math.max(minSpeed, Math.min(speed, maxSpeed));
+    const scale = nextSpeed / speed;
+    body.vx *= scale;
+    body.vy *= scale;
+}
+
+function resolveAuthBubbleEdges(body, fieldWidth, fieldHeight) {
+    const maxX = Math.max(0, fieldWidth - body.size);
+    const maxY = Math.max(0, fieldHeight - body.size);
+
+    if (body.x <= 0) {
+        body.x = 0;
+        body.vx = Math.abs(body.vx);
+    } else if (body.x >= maxX) {
+        body.x = maxX;
+        body.vx = -Math.abs(body.vx);
+    }
+
+    if (body.y <= 0) {
+        body.y = 0;
+        body.vy = Math.abs(body.vy);
+    } else if (body.y >= maxY) {
+        body.y = maxY;
+        body.vy = -Math.abs(body.vy);
+    }
+}
+
+function bounceAuthBubbleFromNormal(body, normalX, normalY) {
+    const velocityAlongNormal = (body.vx * normalX) + (body.vy * normalY);
+
+    if (velocityAlongNormal >= 0) return;
+
+    body.vx -= 2 * velocityAlongNormal * normalX;
+    body.vy -= 2 * velocityAlongNormal * normalY;
+    stabilizeAuthBubbleSpeed(body);
+}
+
+function resolveAuthBubbleInputGuard(body, guardRect) {
+    if (!guardRect) return;
+
+    const centerX = body.x + body.radius;
+    const centerY = body.y + body.radius;
+    const closestX = Math.max(guardRect.left, Math.min(centerX, guardRect.right));
+    const closestY = Math.max(guardRect.top, Math.min(centerY, guardRect.bottom));
+    const dx = centerX - closestX;
+    const dy = centerY - closestY;
+    const distanceSquared = (dx * dx) + (dy * dy);
+
+    if (distanceSquared > 0 && distanceSquared < body.radius * body.radius) {
+        const distance = Math.sqrt(distanceSquared);
+        const normalX = dx / distance;
+        const normalY = dy / distance;
+        const overlap = body.radius - distance + AUTH_BUBBLE_COLLISION_PADDING;
+
+        body.x += normalX * overlap;
+        body.y += normalY * overlap;
+        bounceAuthBubbleFromNormal(body, normalX, normalY);
+        return;
+    }
+
+    const centerInsideGuard = centerX >= guardRect.left
+        && centerX <= guardRect.right
+        && centerY >= guardRect.top
+        && centerY <= guardRect.bottom;
+
+    if (!centerInsideGuard) return;
+
+    const exits = [
+        { distance: centerX - guardRect.left, normalX: -1, normalY: 0, x: guardRect.left - body.size, y: body.y },
+        { distance: guardRect.right - centerX, normalX: 1, normalY: 0, x: guardRect.right, y: body.y },
+        { distance: centerY - guardRect.top, normalX: 0, normalY: -1, x: body.x, y: guardRect.top - body.size },
+        { distance: guardRect.bottom - centerY, normalX: 0, normalY: 1, x: body.x, y: guardRect.bottom }
+    ].sort((first, second) => first.distance - second.distance);
+    const exit = exits[0];
+
+    body.x = exit.x;
+    body.y = exit.y;
+    bounceAuthBubbleFromNormal(body, exit.normalX, exit.normalY);
+}
+
+function resolveAuthBubbleCollisions() {
+    for (let i = 0; i < authBubbleBodies.length; i += 1) {
+        for (let j = i + 1; j < authBubbleBodies.length; j += 1) {
+            const first = authBubbleBodies[i];
+            const second = authBubbleBodies[j];
+            const firstCenterX = first.x + first.radius;
+            const firstCenterY = first.y + first.radius;
+            const secondCenterX = second.x + second.radius;
+            const secondCenterY = second.y + second.radius;
+            const dx = secondCenterX - firstCenterX;
+            const dy = secondCenterY - firstCenterY;
+            const minimumDistance = first.radius + second.radius + AUTH_BUBBLE_COLLISION_PADDING;
+            const distanceSquared = (dx * dx) + (dy * dy);
+
+            if (distanceSquared >= minimumDistance * minimumDistance) continue;
+
+            const distance = Math.sqrt(distanceSquared);
+            const fallbackAngle = ((i + j + 1) / authBubbleBodies.length) * Math.PI * 2;
+            const normalX = distance > 0 ? dx / distance : Math.cos(fallbackAngle);
+            const normalY = distance > 0 ? dy / distance : Math.sin(fallbackAngle);
+            const overlap = minimumDistance - distance;
+            const separation = (overlap / 2) + 0.5;
+
+            first.x -= normalX * separation;
+            first.y -= normalY * separation;
+            second.x += normalX * separation;
+            second.y += normalY * separation;
+
+            const relativeVelocity = ((first.vx - second.vx) * normalX) + ((first.vy - second.vy) * normalY);
+
+            if (relativeVelocity > 0) {
+                first.vx -= relativeVelocity * normalX;
+                first.vy -= relativeVelocity * normalY;
+                second.vx += relativeVelocity * normalX;
+                second.vy += relativeVelocity * normalY;
+            } else {
+                const nudge = 2.5;
+                first.vx -= normalX * nudge;
+                first.vy -= normalY * nudge;
+                second.vx += normalX * nudge;
+                second.vy += normalY * nudge;
+            }
+
+            stabilizeAuthBubbleSpeed(first);
+            stabilizeAuthBubbleSpeed(second);
+        }
+    }
+}
+
+function initializeAuthFloatingBubblePhysics() {
+    if (!authFloatingBubbles || authScreen.hidden) return;
+
+    const { width, height } = getAuthBubbleFieldSize();
+    const elements = [...authFloatingBubbles.querySelectorAll(".auth-floating-habit")];
+
+    authBubbleBodies = elements.map((element, index) => {
+        const item = authFloatingBubbleLayout[index] || authFloatingBubbleLayout[0];
+        const computedSize = Number.parseFloat(getComputedStyle(element).width);
+        const size = computedSize || Number.parseFloat(item.size) || 120;
+        const initial = getAuthBubbleInitialPosition(item, size, width, height);
+        const vx = (item.baseVelocityX || 8) * AUTH_BUBBLE_SPEED_MULTIPLIER;
+        const vy = (item.baseVelocityY || 8) * AUTH_BUBBLE_SPEED_MULTIPLIER;
+
+        return {
+            element,
+            x: initial.x,
+            y: initial.y,
+            vx,
+            vy,
+            size,
+            radius: size / 2,
+            baseSpeed: Math.hypot(vx, vy),
+            rotation: item.rotation || 0,
+            rotationVelocity: item.rotationVelocity || 0
+        };
+    });
+
+    applyAuthBubbleTransforms();
+}
+
+function resizeAuthFloatingBubbleField() {
+    if (!authFloatingBubbles || authScreen.hidden || !authBubbleBodies.length) return;
+
+    const { width, height } = getAuthBubbleFieldSize();
+    authBubbleBodies.forEach(body => {
+        body.size = Number.parseFloat(getComputedStyle(body.element).width) || body.size;
+        body.radius = body.size / 2;
+        body.x = clampAuthBubblePosition(body.x, body.size, width);
+        body.y = clampAuthBubblePosition(body.y, body.size, height);
+    });
+    applyAuthBubbleTransforms();
+}
+
+function animateAuthFloatingBubbles(timestamp) {
+    if (!authFloatingBubbles || authScreen.hidden) {
+        stopAuthFloatingBubbles();
+        return;
+    }
+
+    if (!authBubbleBodies.length) {
+        initializeAuthFloatingBubblePhysics();
+    }
+
+    const deltaSeconds = authBubbleLastFrame
+        ? Math.min((timestamp - authBubbleLastFrame) / 1000, AUTH_BUBBLE_MAX_FRAME_SECONDS)
+        : 0;
+    authBubbleLastFrame = timestamp;
+
+    if (deltaSeconds > 0) {
+        const { width, height } = getAuthBubbleFieldSize();
+        const inputGuardRect = getAuthBubbleInputGuardRect();
+
+        authBubbleBodies.forEach(body => {
+            body.x += body.vx * deltaSeconds;
+            body.y += body.vy * deltaSeconds;
+            body.rotation += body.rotationVelocity * deltaSeconds;
+            resolveAuthBubbleInputGuard(body, inputGuardRect);
+            resolveAuthBubbleEdges(body, width, height);
+        });
+
+        for (let pass = 0; pass < 2; pass += 1) {
+            resolveAuthBubbleCollisions();
+            authBubbleBodies.forEach(body => {
+                resolveAuthBubbleInputGuard(body, inputGuardRect);
+                resolveAuthBubbleEdges(body, width, height);
+            });
+        }
+
+        applyAuthBubbleTransforms();
+    }
+
+    authBubbleAnimationFrame = window.requestAnimationFrame(animateAuthFloatingBubbles);
+}
+
+function startAuthFloatingBubbles() {
+    if (!authFloatingBubbles || authScreen.hidden || authBubbleAnimationFrame) return;
+
+    initializeAuthFloatingBubblePhysics();
+    authBubbleLastFrame = 0;
+    authBubbleAnimationFrame = window.requestAnimationFrame(animateAuthFloatingBubbles);
+}
+
+function stopAuthFloatingBubbles() {
+    if (authBubbleAnimationFrame) {
+        window.cancelAnimationFrame(authBubbleAnimationFrame);
+    }
+
+    authBubbleAnimationFrame = null;
+    authBubbleLastFrame = 0;
+}
+
+function createAuthFloatingBubbles() {
+    if (!authFloatingBubbles) return;
+
+    const floatingBubbles = authFloatingBubbleLayout.slice(0, AUTH_FLOATING_BUBBLE_COUNT);
+
+    authFloatingBubbles.innerHTML = floatingBubbles.map((item, index) => {
+        const template = habitTemplates[item.templateIndex] || habitTemplates[0];
+        const compoundClass = isCompoundEmoji(template.emoji) ? " is-compound" : "";
+
+        return `
+            <div class="auth-floating-habit" data-auth-bubble-index="${index}" style="--float-size: ${item.size};">
+                <div class="icon-option${compoundClass}">${template.emoji}</div>
+            </div>
+        `;
+    }).join("");
+
+    authBubbleBodies = [];
 }
 
 function getReadableTextColor(backgroundColor) {
@@ -2622,6 +2974,7 @@ function bindEvents() {
     });
 
     window.addEventListener("resize", () => {
+        resizeAuthFloatingBubbleField();
         if (colorPalette.classList.contains("show")) positionColorPopover(colorPalette, rainbowTrigger);
         if (editColorPalette.classList.contains("show")) positionColorPopover(editColorPalette, editColorTrigger);
     });
@@ -2632,6 +2985,7 @@ function bindEvents() {
     }, { passive: true });
 
     window.visualViewport?.addEventListener("resize", () => {
+        resizeAuthFloatingBubbleField();
         if (colorPalette.classList.contains("show")) positionColorPopover(colorPalette, rainbowTrigger);
         if (editColorPalette.classList.contains("show")) positionColorPopover(editColorPalette, editColorTrigger);
     });
@@ -2664,6 +3018,7 @@ function showSignedOutScreen() {
     authScreen.hidden = false;
     appShell.hidden = true;
     setLoadingVisible(false);
+    startAuthFloatingBubbles();
 }
 
 async function showSignedInScreen(user) {
@@ -2673,6 +3028,7 @@ async function showSignedInScreen(user) {
     }
 
     currentUser = user;
+    stopAuthFloatingBubbles();
     authScreen.hidden = true;
     appShell.hidden = false;
     updateSessionUserCopy();
@@ -2718,6 +3074,7 @@ function init() {
     createIcons();
     createColors(colorPalette);
     createColors(editColorPalette);
+    createAuthFloatingBubbles();
     mountColorPopover(colorPalette);
     mountColorPopover(editColorPalette);
     bindEvents();

@@ -235,15 +235,32 @@ h1 {
 }
 
 .auth-screen {
+    position: relative;
     width: 100%;
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 18px;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.auth-floating-bubbles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.auth-floating-bubbles * {
+    pointer-events: none;
 }
 
 .auth-panel {
+    position: relative;
+    z-index: 2;
     width: 100%;
     max-width: 370px;
     background: rgba(30, 41, 59, 0.86);
@@ -252,6 +269,22 @@ h1 {
     padding: 22px;
     box-shadow: var(--shadow);
     backdrop-filter: blur(14px);
+}
+
+.auth-floating-habit {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--float-size, 150px);
+    aspect-ratio: 1 / 1;
+    will-change: transform;
+    transform: translate3d(-200px, -200px, 0);
+}
+
+.auth-floating-habit .icon-option {
+    width: 100%;
+    height: 100%;
+    cursor: default;
 }
 
 .auth-panel h1 {
