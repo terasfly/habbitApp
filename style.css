@@ -53,8 +53,33 @@ body {
 
 header {
     display: flex;
+    align-items: center;
     justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
     margin-bottom: 20px;
+}
+
+.auth-title-row,
+.app-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.auth-title-row {
+    margin-bottom: 18px;
+}
+
+.auth-panel .auth-title-row h1,
+.app-title-row h1 {
+    margin: 0;
+}
+
+.title-language-switcher {
+    transform: translateY(1px);
 }
 
 h1 {
@@ -248,7 +273,12 @@ h1 {
 
 .auth-floating-bubbles {
     position: absolute;
-    inset: 0;
+    top: 50%;
+    left: 50%;
+    width: min(680px, calc(100vw - 32px));
+    height: min(760px, calc(100vh - 32px));
+    height: min(760px, calc(100dvh - 32px));
+    transform: translate(-50%, -50%);
     overflow: hidden;
     pointer-events: none;
     z-index: 1;
@@ -256,6 +286,14 @@ h1 {
 
 .auth-floating-bubbles * {
     pointer-events: none;
+}
+
+@media (max-width: 520px) {
+    .auth-floating-bubbles {
+        width: calc(100vw - 8px);
+        height: min(700px, calc(100vh - 8px));
+        height: min(700px, calc(100dvh - 8px));
+    }
 }
 
 .auth-panel {
@@ -346,27 +384,39 @@ h1 {
 }
 
 .auth-password-field input {
+    display: block;
     margin-bottom: 0;
     padding-right: 72px;
 }
 
-.password-toggle {
+.auth-password-field .password-toggle {
     position: absolute;
     top: 50%;
     right: 8px;
     transform: translateY(-50%);
     min-width: 52px;
-    min-height: 34px;
+    height: 28px;
+    min-height: 0;
+    padding: 0 8px;
+    margin: 0;
     border: 1px solid rgba(255,255,255,0.14);
     border-radius: 9px;
     background: rgba(15, 23, 42, 0.72);
     color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: 0.72rem;
     font-weight: 900;
+    line-height: 1;
+    appearance: none;
+    -webkit-appearance: none;
+    box-sizing: border-box;
+    white-space: nowrap;
     cursor: pointer;
 }
 
-.password-toggle:active {
+.auth-password-field .password-toggle:active {
     transform: translateY(-50%) scale(0.97);
 }
 

@@ -49,7 +49,13 @@
     <section id="auth-screen" class="auth-screen" hidden>
         <div class="auth-floating-bubbles" id="auth-floating-bubbles" aria-hidden="true"></div>
         <form id="auth-form" class="auth-panel">
-            <h1 data-i18n="myHabits">My Habits</h1>
+            <div class="auth-title-row">
+                <h1 data-i18n="myHabits">My Habits</h1>
+                <div class="language-switcher title-language-switcher" role="group" aria-label="Language switcher" data-i18n-aria-label="language">
+                    <button type="button" class="lang-btn active" data-lang="en" aria-label="English" aria-pressed="true" data-i18n-aria-label="languageEnglish">EN</button>
+                    <button type="button" class="lang-btn" data-lang="lt" aria-label="Lithuanian" aria-pressed="false" data-i18n-aria-label="languageLithuanian">LT</button>
+                </div>
+            </div>
             <div class="auth-mode-tabs" role="tablist" aria-label="Authentication mode" data-i18n-aria-label="authMode">
                 <button type="button" class="auth-mode-btn active" data-auth-mode="login" data-i18n="logIn">Log in</button>
                 <button type="button" class="auth-mode-btn" data-auth-mode="signup" data-i18n="signUp">Sign up</button>
@@ -70,7 +76,13 @@
     </section>
 
     <div id="app-shell" class="container" hidden>
-        <header><h1 data-i18n="myHabits">My Habits</h1></header>
+        <header class="app-title-row">
+            <h1 data-i18n="myHabits">My Habits</h1>
+            <div class="language-switcher title-language-switcher" role="group" aria-label="Language switcher" data-i18n-aria-label="language">
+                <button type="button" class="lang-btn active" data-lang="en" aria-label="English" aria-pressed="true" data-i18n-aria-label="languageEnglish">EN</button>
+                <button type="button" class="lang-btn" data-lang="lt" aria-label="Lithuanian" aria-pressed="false" data-i18n-aria-label="languageLithuanian">LT</button>
+            </div>
+        </header>
         <div class="session-row">
             <div class="session-user" id="session-user"></div>
             <div class="session-actions">
