@@ -36,6 +36,15 @@
             chooseCustomColor: "Choose custom color",
             changeHabitColor: "Change habit color",
             chooseHabitColor: "Choose habit color",
+            targetQuestion: "Goal",
+            targetFrequency: "Habit frequency",
+            targetEveryDay: "Daily",
+            targetTwoPerWeek: "2 / week",
+            targetThreePerWeek: "3 / week",
+            targetFourPerWeek: "4 / week",
+            targetFivePerWeek: "5 / week",
+            targetCustom: "Custom",
+            targetCustomLabel: "Times / week",
             notification: "Notification"
         },
         lt: {
@@ -70,6 +79,15 @@
             chooseCustomColor: "Pasirink pasirinktinę spalvą",
             changeHabitColor: "Keisti įpročio spalvą",
             chooseHabitColor: "Pasirink įpročio spalvą",
+            targetQuestion: "Tikslas",
+            targetFrequency: "Įpročio dažnis",
+            targetEveryDay: "Kasdien",
+            targetTwoPerWeek: "2 / sav.",
+            targetThreePerWeek: "3 / sav.",
+            targetFourPerWeek: "4 / sav.",
+            targetFivePerWeek: "5 / sav.",
+            targetCustom: "Pasirinktinai",
+            targetCustomLabel: "Kartai / sav.",
             notification: "Pranešimas"
         }
     };
@@ -157,4 +175,3 @@
         initLanguageSwitcher();
     }
 })();
-

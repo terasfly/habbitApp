@@ -30,6 +30,8 @@ service cloud.firestore {
           'history',
           'color',
           'emoji',
+          'targetType',
+          'weeklyTarget',
           'createdAt'
         ])
         && request.resource.data.id == habitId
@@ -37,6 +39,12 @@ service cloud.firestore {
         && request.resource.data.history is list
         && request.resource.data.color is string
         && request.resource.data.emoji is string
+        && (!request.resource.data.keys().hasAny(['targetType']) || request.resource.data.targetType in ['daily', 'weekly'])
+        && (!request.resource.data.keys().hasAny(['weeklyTarget']) || (
+          request.resource.data.weeklyTarget is number
+          && request.resource.data.weeklyTarget >= 1
+          && request.resource.data.weeklyTarget <= 7
+        ))
         && request.resource.data.createdAt is number;
     }
 

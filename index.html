@@ -28,7 +28,7 @@
     <link rel="apple-touch-startup-image" href="icons/apple-splash-828x1792.png?v=6" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="icons/apple-splash-1242x2208.png?v=6" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="icons/apple-splash-750x1334.png?v=6" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="stylesheet" href="style.css?v=lang-2">
+    <link rel="stylesheet" href="style.css?v=weekly-1">
     <link rel="stylesheet" href="language-switcher.css?v=1">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,8 +36,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script type="module" src="script.js?v=lang-2"></script>
-    <script src="language-switcher.js?v=1" defer></script>
+    <script type="module" src="script.js?v=weekly-1"></script>
+    <script src="language-switcher.js?v=weekly-labels-1" defer></script>
 </head>
 <body>
 
@@ -113,6 +113,21 @@
             <h2 style="margin-bottom: 12px; color: var(--sky-blue); font-size: 1.2rem;" data-i18n="newHabit">New Habit</h2>
             <div class="icon-selector" id="icon-selector"></div>
             <input type="text" id="new-streak-name" placeholder="Habit Name" data-i18n-placeholder="habitName" maxlength="20">
+            <div class="target-panel">
+                <div class="target-question" data-i18n="targetQuestion">Goal</div>
+                <div class="target-options" id="create-target-options" role="group" aria-label="Habit frequency" data-i18n-aria-label="targetFrequency">
+                    <button type="button" class="target-option active" data-target-type="daily" data-weekly-target="7" aria-pressed="true" data-i18n="targetEveryDay">Daily</button>
+                    <button type="button" class="target-option" data-target-type="weekly" data-weekly-target="2" aria-pressed="false" data-i18n="targetTwoPerWeek">2 / week</button>
+                    <button type="button" class="target-option" data-target-type="weekly" data-weekly-target="3" aria-pressed="false" data-i18n="targetThreePerWeek">3 / week</button>
+                    <button type="button" class="target-option" data-target-type="weekly" data-weekly-target="4" aria-pressed="false" data-i18n="targetFourPerWeek">4 / week</button>
+                    <button type="button" class="target-option" data-target-type="weekly" data-weekly-target="5" aria-pressed="false" data-i18n="targetFivePerWeek">5 / week</button>
+                    <button type="button" class="target-option" data-target-custom="true" aria-pressed="false" data-i18n="targetCustom">Custom</button>
+                </div>
+                <label class="custom-target-row" id="create-custom-target-row" hidden>
+                    <span data-i18n="targetCustomLabel">Times / week</span>
+                    <input type="number" id="create-custom-weekly-target" min="1" max="7" step="1" value="1">
+                </label>
+            </div>
             <div class="color-picker-wrapper">
                 <div class="rainbow-btn" id="rainbow-trigger"><span>🎨</span></div>
                 <input type="color" id="custom-color-input" class="custom-color-input" value="#63b3ed" aria-label="Choose custom color" data-i18n-aria-label="chooseCustomColor">
@@ -136,6 +151,21 @@
                     <input type="color" id="edit-custom-color-input" class="custom-color-input" value="#63b3ed" aria-label="Choose habit color" data-i18n-aria-label="chooseHabitColor">
                     <div class="color-popover" id="edit-color-palette" data-mode="edit"></div>
                 </div>
+            </div>
+            <div class="target-panel target-panel-compact">
+                <div class="target-question" data-i18n="targetQuestion">Goal</div>
+                <div class="target-options" id="edit-target-options" role="group" aria-label="Habit frequency" data-i18n-aria-label="targetFrequency">
+                    <button type="button" class="target-option active" data-target-type="daily" data-weekly-target="7" aria-pressed="true" data-i18n="targetEveryDay">Daily</button>
+                    <button type="button" class="target-option" data-target-type="weekly" data-weekly-target="2" aria-pressed="false" data-i18n="targetTwoPerWeek">2 / week</button>
+                    <button type="button" class="target-option" data-target-type="weekly" data-weekly-target="3" aria-pressed="false" data-i18n="targetThreePerWeek">3 / week</button>
+                    <button type="button" class="target-option" data-target-type="weekly" data-weekly-target="4" aria-pressed="false" data-i18n="targetFourPerWeek">4 / week</button>
+                    <button type="button" class="target-option" data-target-type="weekly" data-weekly-target="5" aria-pressed="false" data-i18n="targetFivePerWeek">5 / week</button>
+                    <button type="button" class="target-option" data-target-custom="true" aria-pressed="false" data-i18n="targetCustom">Custom</button>
+                </div>
+                <label class="custom-target-row" id="edit-custom-target-row" hidden>
+                    <span data-i18n="targetCustomLabel">Times / week</span>
+                    <input type="number" id="edit-custom-weekly-target" min="1" max="7" step="1" value="1">
+                </label>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <button id="prev-month" style="background:none; border:none; color:var(--sky-blue); font-size:1.5rem;">←</button>

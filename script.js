@@ -18,6 +18,8 @@ console.log("Firebase connected:", app);
 console.log("Firestore connected:", db);
 
 const STORAGE_KEY = "myStreaksHabits";
+const WEEKLY_TARGET_MIN = 1;
+const WEEKLY_TARGET_MAX = 7;
 
 let streaks = [];
 let activeId = null;
@@ -30,8 +32,11 @@ let selectedIconElement = null;
 let selectedColorDisplay = "#63b3ed";
 let suggestedColor = "#63b3ed";
 let userHasPickedColor = false;
+let selectedTargetType = "daily";
+let selectedWeeklyTarget = 7;
 let colorPickerMode = "create";
 let colorSyncTimeout = null;
+let targetSyncTimeout = null;
 let recentCompletionId = null;
 let currentUser = null;
 let authMode = "login";
@@ -329,6 +334,21 @@ const translations = {
         currentStreakAria: "{count} day{plural} current streak",
         bestStreakAria: "{count} day{plural} streak",
         lastSevenDaysActivity: "Last 7 days activity",
+        targetQuestion: "Goal",
+        targetFrequency: "Habit frequency",
+        targetEveryDay: "Daily",
+        targetTwoPerWeek: "2 / week",
+        targetThreePerWeek: "3 / week",
+        targetFourPerWeek: "4 / week",
+        targetFivePerWeek: "5 / week",
+        targetCustom: "Custom",
+        targetCustomLabel: "Times / week",
+        weeklyWeekLabel: "week",
+        weeklyThisWeek: "{count} / {target} this week",
+        weeklyWeekDone: "{count} / {target} week done",
+        weeklyCompleted: "{count} / {target} completed \u{1F525}",
+        weeklyStreak: "Weekly streak: {count} \u{1F525}",
+        weeklyStreakAria: "{count} week{plural} weekly streak",
         insightDone: "Done",
         insightDonePerfectWeek: "Done - Perfect week",
         insightDoneWeek: "Done - Week {count}/{days}",
@@ -553,6 +573,21 @@ const translations = {
         currentStreakAria: "Dabartinis streakas: {count} d.",
         bestStreakAria: "Geriausias streakas: {count} d.",
         lastSevenDaysActivity: "Paskutinių 7 dienų aktyvumas",
+        targetQuestion: "Tikslas",
+        targetFrequency: "Įpročio dažnis",
+        targetEveryDay: "Kasdien",
+        targetTwoPerWeek: "2 / sav.",
+        targetThreePerWeek: "3 / sav.",
+        targetFourPerWeek: "4 / sav.",
+        targetFivePerWeek: "5 / sav.",
+        targetCustom: "Pasirinktinai",
+        targetCustomLabel: "Kartai / sav.",
+        weeklyWeekLabel: "sav.",
+        weeklyThisWeek: "{count} / {target} šią savaitę",
+        weeklyWeekDone: "{count} / {target} savaitė atlikta",
+        weeklyCompleted: "{count} / {target} atlikta \u{1F525}",
+        weeklyStreak: "Savaičių streakas: {count} \u{1F525}",
+        weeklyStreakAria: "Savaičių streakas: {count}",
         insightDone: "Atlikta",
         insightDonePerfectWeek: "Atlikta - tobula savaitė",
         insightDoneWeek: "Atlikta - savaitė {count}/{days}",
@@ -943,6 +978,8 @@ function updateLanguage(lang, options = {}) {
     createIcons();
     createColors(colorPalette);
     createColors(editColorPalette);
+    updateTargetControls("create");
+    updateTargetControls("edit");
 
     if (!appShell.hidden) {
         render();
@@ -968,6 +1005,12 @@ const editColorPalette = document.getElementById("edit-color-palette");
 const editColorTrigger = document.getElementById("edit-color-trigger");
 const editCustomColorInput = document.getElementById("edit-custom-color-input");
 const editColorStatus = document.getElementById("edit-color-status");
+const createTargetOptions = document.getElementById("create-target-options");
+const createCustomTargetRow = document.getElementById("create-custom-target-row");
+const createCustomTargetInput = document.getElementById("create-custom-weekly-target");
+const editTargetOptions = document.getElementById("edit-target-options");
+const editCustomTargetRow = document.getElementById("edit-custom-target-row");
+const editCustomTargetInput = document.getElementById("edit-custom-weekly-target");
 const confirmAddBtn = document.getElementById("confirm-add");
 const syncStatus = document.getElementById("sync-status");
 const loadingScreen = document.getElementById("loading-screen");
@@ -1075,6 +1118,31 @@ function scheduleHabitColorSync(streak) {
     }, 350);
 }
 
+function scheduleHabitTargetSync(streak) {
+    if (targetSyncTimeout) {
+        window.clearTimeout(targetSyncTimeout);
+    }
+
+    const user = currentUser;
+
+    targetSyncTimeout = window.setTimeout(async () => {
+        if (!user || currentUser?.uid !== user.uid) return;
+
+        try {
+            await syncHabitToFirebase(streak, user);
+            if (currentUser?.uid === user.uid) {
+                saveHabits("statusSavedToFirebase");
+            }
+        } catch (error) {
+            console.error("Firebase target sync error:", error);
+            if (currentUser?.uid === user.uid) {
+                saveHabits("statusSavedLocallyOnly");
+                showToast("toastFirebaseSyncFailed");
+            }
+        }
+    }, 350);
+}
+
 function updateActiveHabitColor(color) {
     const streak = getActiveStreak();
     if (!streak) return;
@@ -1124,6 +1192,187 @@ function applySelectedColor(color, options = {}) {
 
 function getDStr(date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function clampWeeklyTarget(value, fallback = 7) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(WEEKLY_TARGET_MAX, Math.max(WEEKLY_TARGET_MIN, parsed));
+}
+
+function normalizeTargetType(targetType) {
+    return targetType === "weekly" ? "weekly" : "daily";
+}
+
+function normalizeHabitTarget(data = {}) {
+    const targetType = normalizeTargetType(data.targetType);
+    return {
+        targetType,
+        weeklyTarget: targetType === "weekly"
+            ? clampWeeklyTarget(data.weeklyTarget, 3)
+            : 7
+    };
+}
+
+function getHabitTargetType(streak) {
+    return normalizeTargetType(streak?.targetType);
+}
+
+function getHabitWeeklyTarget(streak) {
+    return getHabitTargetType(streak) === "weekly"
+        ? clampWeeklyTarget(streak?.weeklyTarget, 3)
+        : 7;
+}
+
+function isWeeklyHabit(streak) {
+    return getHabitTargetType(streak) === "weekly";
+}
+
+function getNormalizedTarget(targetType, weeklyTarget) {
+    const normalizedType = normalizeTargetType(targetType);
+    return {
+        targetType: normalizedType,
+        weeklyTarget: normalizedType === "weekly"
+            ? clampWeeklyTarget(weeklyTarget, 3)
+            : 7
+    };
+}
+
+function parseDateKey(dateKey) {
+    if (typeof dateKey !== "string") return null;
+
+    const parts = dateKey.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(part => !Number.isFinite(part))) return null;
+
+    const [year, month, day] = parts;
+    const date = new Date(year, month - 1, day);
+    date.setHours(0, 0, 0, 0);
+
+    if (
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+    ) {
+        return null;
+    }
+
+    return date;
+}
+
+function getWeekStart(date = new Date()) {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const dayOfWeek = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - dayOfWeek);
+    return start;
+}
+
+function getWeekEnd(weekStart) {
+    const end = new Date(weekStart);
+    end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return end;
+}
+
+function addDays(date, days) {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+}
+
+function getWeeklyHistoryCounts(history) {
+    const counts = new Map();
+
+    [...new Set(history || [])].forEach(dateKey => {
+        const date = parseDateKey(dateKey);
+        if (!date) return;
+
+        const weekKey = getDStr(getWeekStart(date));
+        counts.set(weekKey, (counts.get(weekKey) || 0) + 1);
+    });
+
+    return counts;
+}
+
+function getWeeklyProgress(streak, referenceDate = new Date()) {
+    const target = getHabitWeeklyTarget(streak);
+    const weekStart = getWeekStart(referenceDate);
+    const weekEnd = getWeekEnd(weekStart);
+    const completedDays = new Set(streak?.history || []);
+    let count = 0;
+
+    completedDays.forEach(dateKey => {
+        const date = parseDateKey(dateKey);
+        if (!date) return;
+        if (date >= weekStart && date <= weekEnd) count++;
+    });
+
+    return {
+        count,
+        target,
+        percent: Math.min(100, (count / target) * 100),
+        isComplete: count >= target,
+        weekStartKey: getDStr(weekStart),
+        weekEndKey: getDStr(weekEnd)
+    };
+}
+
+function getWeeklyStreak(streak, referenceDate = new Date()) {
+    const target = getHabitWeeklyTarget(streak);
+    const counts = getWeeklyHistoryCounts(streak?.history || []);
+    let cursor = getWeekStart(referenceDate);
+    let streakCount = 0;
+
+    if ((counts.get(getDStr(cursor)) || 0) >= target) {
+        streakCount++;
+    }
+
+    cursor = addDays(cursor, -7);
+
+    while ((counts.get(getDStr(cursor)) || 0) >= target) {
+        streakCount++;
+        cursor = addDays(cursor, -7);
+    }
+
+    return streakCount;
+}
+
+function getBestWeeklyStreak(streak) {
+    const target = getHabitWeeklyTarget(streak);
+    const successfulWeeks = [...getWeeklyHistoryCounts(streak?.history || [])]
+        .filter(([, count]) => count >= target)
+        .map(([weekKey]) => weekKey)
+        .sort();
+
+    let bestStreak = 0;
+    let currentStreak = 0;
+    let previousTime = null;
+
+    successfulWeeks.forEach(weekKey => {
+        const date = parseDateKey(weekKey);
+        if (!date) return;
+
+        const currentTime = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+        currentStreak = previousTime !== null && currentTime - previousTime === 7 * 86400000
+            ? currentStreak + 1
+            : 1;
+        bestStreak = Math.max(bestStreak, currentStreak);
+        previousTime = currentTime;
+    });
+
+    return bestStreak;
+}
+
+function getHabitCurrentStreak(streak) {
+    return isWeeklyHabit(streak)
+        ? getWeeklyStreak(streak)
+        : getCurrentStreak(streak?.history || []);
+}
+
+function getHabitBestStreak(streak) {
+    return isWeeklyHabit(streak)
+        ? getBestWeeklyStreak(streak)
+        : getBestStreak(streak?.history || []);
 }
 
 function createId() {
@@ -1394,6 +1643,7 @@ function normalizeHabitIdentity(data) {
 
 function normalizeHabit(data, firebaseDocId) {
     const identity = normalizeHabitIdentity(data);
+    const target = normalizeHabitTarget(data);
 
     return {
         id: data.id || firebaseDocId || createId(),
@@ -1401,6 +1651,8 @@ function normalizeHabit(data, firebaseDocId) {
         history: normalizeHistory(data.history),
         color: data.color || "#63b3ed",
         emoji: identity.emoji,
+        targetType: target.targetType,
+        weeklyTarget: target.weeklyTarget,
         createdAt: typeof data.createdAt === "number" ? data.createdAt : Date.now(),
         firebaseDocId
     };
@@ -1435,6 +1687,8 @@ async function syncHabitToFirebase(streak, user = requireCurrentUser()) {
         name: streak.name,
         history: normalizeHistory(streak.history),
         color: streak.color || "#63b3ed",
+        targetType: getHabitTargetType(streak),
+        weeklyTarget: getHabitWeeklyTarget(streak),
         emoji: streak.emoji || "📚",
         createdAt: typeof streak.createdAt === "number" ? streak.createdAt : Date.now()
     };
@@ -1548,6 +1802,15 @@ function getStreakLevel(days) {
 function getHabitPerformance(streak) {
     const history = streak.history || [];
 
+    if (isWeeklyHabit(streak)) {
+        const week = getWeeklyProgress(streak);
+        return {
+            completionRate: week.target > 0 ? Math.min(1, week.count / week.target) : 0,
+            currentStreak: getWeeklyStreak(streak),
+            completedThisMonth: getCompletedDaysThisMonth(history)
+        };
+    }
+
     return {
         completionRate: getMonthlyCompletionRate(history),
         currentStreak: getCurrentStreak(history),
@@ -1642,7 +1905,26 @@ function getWeekProgress(history) {
 const insightMessagesById = {};
 let insightRotationTimer = null;
 
+function getWeeklyInsightMessages(streak) {
+    const week = getWeeklyProgress(streak);
+    const streakCount = getWeeklyStreak(streak);
+    const messages = [];
+
+    messages.push(
+        week.isComplete
+            ? `${t("weeklyWeekDone", { count: week.count, target: week.target })} ${streak.emoji || ""}`.trim()
+            : t("weeklyThisWeek", { count: week.count, target: week.target })
+    );
+    messages.push(t("weeklyStreak", { count: streakCount }));
+
+    return messages;
+}
+
 function getInsightMessages(streak, isDone) {
+    if (isWeeklyHabit(streak)) {
+        return getWeeklyInsightMessages(streak);
+    }
+
     const week = getWeekProgress(streak.history || []);
     const history = streak.history || [];
     const lastDone = history.slice().sort().pop();
@@ -2123,18 +2405,26 @@ function render() {
     const currentMonthLabel = getShortMonthLabel();
 
     streaks.forEach(streak => {
-        const isDone = (streak.history || []).includes(todayStr);
+        const weeklyHabit = isWeeklyHabit(streak);
+        const weeklyProgress = weeklyHabit ? getWeeklyProgress(streak) : null;
+        const completedToday = (streak.history || []).includes(todayStr);
+        const isDone = weeklyHabit ? weeklyProgress.isComplete : completedToday;
         const color = streak.color || "#63b3ed";
         const colorRgb = hexToRgb(color);
-        const stats = getMonthProgress(streak.history || []);
-        const currentStreak = getCurrentStreak(streak.history || []);
-        const bestStreak = getBestStreak(streak.history || []);
+        const stats = weeklyHabit ? { percent: weeklyProgress.percent } : getMonthProgress(streak.history || []);
+        const currentStreak = getHabitCurrentStreak(streak);
+        const bestStreak = weeklyHabit ? currentStreak : getHabitBestStreak(streak);
         const streakLevel = getStreakLevel(currentStreak);
         const displayedPercent = Math.max(0, Math.min(100, Math.round(stats.percent)));
         const percentTone = getHabitPercentTone(displayedPercent);
         const recentWeekDays = getRecentWeekDays(streak.history || []);
-        const rotation = (stats.percent / 100) * 360;
+        const progressPercent = Math.max(0, Math.min(100, stats.percent));
+        const rotation = (progressPercent / 100) * 360;
         const dotRotation = isTouchDevice() ? 0 : rotation;
+        const progressMarkup = weeklyHabit
+            ? `<span class="weekly-progress-value">${weeklyProgress.count}<span class="weekly-progress-divider">/</span>${weeklyProgress.target}</span><span class="month-label">${t("weeklyWeekLabel")}</span>`
+            : `<span class="streak-percent-value">${displayedPercent}<span class="percent-sign">%</span></span><span class="month-label">${currentMonthLabel}</span>`;
+        const identityProgress = weeklyHabit ? Math.min(1, weeklyProgress.count / weeklyProgress.target) : (isDone ? 1 : 0);
         const streakDots = recentWeekDays.map(day => {
             const dotBackground = day.completed ? color : "#030712";
             const dotTextColor = getReadableTextColor(dotBackground);
@@ -2145,23 +2435,23 @@ function render() {
         }).join("");
 
         const card = document.createElement("div");
-        card.className = "streak-card";
+        card.className = `streak-card${weeklyHabit ? " weekly-card" : ""}`;
 
         card.innerHTML = `
             <button class="delete-btn" data-action="delete" data-id="${streak.id}">✕</button>
             <div class="ring-wrapper" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                 <div class="ring-track"></div>
-                <div class="ring-progress" style="background: conic-gradient(${color} ${stats.percent}%, transparent 0)"></div>
+                <div class="ring-progress" style="background: conic-gradient(${color} ${progressPercent}%, transparent 0)"></div>
                 <div class="ring-dot-container" style="transform: rotate(${dotRotation}deg)">
                     <div class="ring-dot${isDone ? " done-today" : ""}"></div>
                 </div>
-                <div class="bubble${isDone ? " done-today" : ""}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
+                <div class="bubble${weeklyHabit ? " weekly-bubble" : ""}${isDone ? " done-today" : ""}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                     ${isDone ? `<div class="check-badge" aria-hidden="true">✓</div>` : ""}
                     <div class="icon-badge">
                         <div class="streak-emoji${isCompoundEmoji(streak.emoji) ? " is-compound" : ""}">${streak.emoji || "📚"}</div>
                     </div>
                     <div class="streak-count" style="--percent-color: ${percentTone.color}; --percent-glow: ${percentTone.glow}; --percent-edge: ${percentTone.edge};">
-                        <span class="streak-percent-value">${displayedPercent}<span class="percent-sign">%</span></span><span class="month-label">${currentMonthLabel}</span>
+                        ${progressMarkup}
                     </div>
                     <div class="streak-dots" aria-label="Last 7 days activity">
                         ${streakDots}
@@ -2173,7 +2463,7 @@ function render() {
                     </div>
                 </div>
             </div>
-            <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${isDone ? 1 : 0};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="0">
+            <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${identityProgress};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="0">
                 <div class="streak-name">${streak.name}</div>
                 <div class="streak-insight">${getInsightMessages(streak, isDone)[0]}</div>
             </div>
@@ -2185,7 +2475,7 @@ function render() {
             deleteButton.innerHTML = "&times;";
         }
         card.querySelector(".streak-dots")?.setAttribute("aria-label", t("lastSevenDaysActivity"));
-        card.querySelector(".best-label")?.setAttribute("aria-label", t("bestStreakAria", {
+        card.querySelector(".best-label")?.setAttribute("aria-label", t(weeklyHabit ? "weeklyStreakAria" : "bestStreakAria", {
             count: bestStreak,
             plural: bestStreak === 1 ? "" : "s"
         }));
@@ -2211,7 +2501,11 @@ function render() {
 
     startInsightRotation();
 
-    const completed = streaks.filter(streak => (streak.history || []).includes(todayStr)).length;
+    const completed = streaks.filter(streak => (
+        isWeeklyHabit(streak)
+            ? getWeeklyProgress(streak).isComplete
+            : (streak.history || []).includes(todayStr)
+    )).length;
     const progressRatio = streaks.length ? completed / streaks.length : 0;
     const progressColors = getProgressColors(progressRatio);
 
@@ -2233,6 +2527,7 @@ function openStreak(id) {
         suggestedColor = selColor;
     }
     updateEditColorControl();
+    updateTargetControls("edit");
     updateColorSelection();
     updateColorPreview();
     calDate = new Date();
@@ -2250,6 +2545,7 @@ function openAddModal() {
     selEmoji = defaultTemplate.emoji;
     suggestedColor = getSuggestedColorForTemplate(defaultTemplate);
     userHasPickedColor = false;
+    setCreateTarget("daily", 7);
 
     updateIconSelection(iconContainer.querySelector('[data-template-index="0"]'));
     applySelectedColor(suggestedColor);
@@ -2347,7 +2643,7 @@ async function toggleDay(id, dStr) {
     updateYearlyProgress();
 
     if (completedToday) {
-        showCompletionRewardForHabit(id, getCurrentStreak(history));
+        showCompletionRewardForHabit(id, getHabitCurrentStreak(streak));
         recentCompletionId = null;
     }
 
@@ -2485,6 +2781,123 @@ function updateColorPreview() {
         previewIcon.textContent = previewEmoji;
         previewIcon.classList.toggle("is-compound", isCompoundEmoji(previewEmoji));
     });
+}
+
+function getTargetControlElements(mode = "create") {
+    return mode === "edit"
+        ? {
+            options: editTargetOptions,
+            customRow: editCustomTargetRow,
+            customInput: editCustomTargetInput
+        }
+        : {
+            options: createTargetOptions,
+            customRow: createCustomTargetRow,
+            customInput: createCustomTargetInput
+        };
+}
+
+function isPresetWeeklyTarget(target) {
+    return [2, 3, 4, 5].includes(Number(target));
+}
+
+function getCreateTarget() {
+    return getNormalizedTarget(selectedTargetType, selectedWeeklyTarget);
+}
+
+function getTargetForMode(mode) {
+    const streak = mode === "edit" ? getActiveStreak() : null;
+    return streak
+        ? getNormalizedTarget(getHabitTargetType(streak), getHabitWeeklyTarget(streak))
+        : getCreateTarget();
+}
+
+function updateTargetControls(mode = "create") {
+    const controls = getTargetControlElements(mode);
+    if (!controls.options || !controls.customRow || !controls.customInput) return;
+
+    const target = getTargetForMode(mode);
+    const isCustom = target.targetType === "weekly" && !isPresetWeeklyTarget(target.weeklyTarget);
+
+    controls.options.querySelectorAll(".target-option").forEach(button => {
+        const isDailyButton = button.dataset.targetType === "daily";
+        const isCustomButton = button.dataset.targetCustom === "true";
+        const buttonTarget = clampWeeklyTarget(button.dataset.weeklyTarget, 0);
+        const isSelected = (
+            (isDailyButton && target.targetType === "daily") ||
+            (isCustomButton && isCustom) ||
+            (!isDailyButton && !isCustomButton && target.targetType === "weekly" && buttonTarget === target.weeklyTarget)
+        );
+
+        button.classList.toggle("active", isSelected);
+        button.setAttribute("aria-pressed", String(isSelected));
+    });
+
+    controls.customRow.hidden = !isCustom;
+    controls.customInput.value = isCustom ? target.weeklyTarget : (target.targetType === "weekly" ? target.weeklyTarget : 1);
+}
+
+function setCreateTarget(targetType, weeklyTarget) {
+    const target = getNormalizedTarget(targetType, weeklyTarget);
+    selectedTargetType = target.targetType;
+    selectedWeeklyTarget = target.weeklyTarget;
+    updateTargetControls("create");
+}
+
+function updateActiveHabitTarget(targetType, weeklyTarget) {
+    const streak = getActiveStreak();
+    if (!streak) return;
+
+    const target = getNormalizedTarget(targetType, weeklyTarget);
+    const hasChanged = streak.targetType !== target.targetType || streak.weeklyTarget !== target.weeklyTarget;
+
+    streak.targetType = target.targetType;
+    streak.weeklyTarget = target.weeklyTarget;
+    updateTargetControls("edit");
+
+    if (!hasChanged) return;
+
+    saveHabits("statusSavedLocally");
+    render();
+    renderCalendar();
+    updateYearlyProgress();
+    scheduleHabitTargetSync(streak);
+}
+
+function handleTargetOptionClick(button, mode = "create") {
+    const controls = getTargetControlElements(mode);
+    if (!button || !controls.customInput) return;
+
+    let targetType = button.dataset.targetType || "weekly";
+    let weeklyTarget = button.dataset.weeklyTarget;
+
+    if (button.dataset.targetCustom === "true") {
+        const currentTarget = getTargetForMode(mode);
+        targetType = "weekly";
+        weeklyTarget = currentTarget.targetType === "weekly" && !isPresetWeeklyTarget(currentTarget.weeklyTarget)
+            ? currentTarget.weeklyTarget
+            : 1;
+    }
+
+    if (mode === "edit") {
+        updateActiveHabitTarget(targetType, weeklyTarget);
+        return;
+    }
+
+    setCreateTarget(targetType, weeklyTarget);
+}
+
+function handleCustomTargetInput(input, mode = "create") {
+    if (!input || input.value === "") return;
+
+    const weeklyTarget = clampWeeklyTarget(input.value, 1);
+
+    if (mode === "edit") {
+        updateActiveHabitTarget("weekly", weeklyTarget);
+        return;
+    }
+
+    setCreateTarget("weekly", weeklyTarget);
 }
 
 
@@ -2694,12 +3107,15 @@ async function addHabit() {
     renderRecentColors();
 
     const habitId = createId();
+    const target = getCreateTarget();
     const newHabit = {
         id: habitId,
         name: name.charAt(0).toUpperCase() + name.slice(1),
         history: [],
         color: selColor,
         emoji: selEmoji,
+        targetType: target.targetType,
+        weeklyTarget: target.weeklyTarget,
         createdAt: Date.now(),
         firebaseDocId: habitId
     };
@@ -2825,6 +3241,21 @@ function bindEvents() {
         applySelectedColor(event.target.value, { remember: true, mode: "create" });
     });
 
+    createTargetOptions?.addEventListener("click", event => {
+        const button = event.target.closest(".target-option");
+        if (!button || !createTargetOptions.contains(button)) return;
+        handleTargetOptionClick(button, "create");
+    });
+
+    createCustomTargetInput?.addEventListener("input", event => {
+        handleCustomTargetInput(event.target, "create");
+    });
+
+    createCustomTargetInput?.addEventListener("change", event => {
+        event.target.value = clampWeeklyTarget(event.target.value, 1);
+        handleCustomTargetInput(event.target, "create");
+    });
+
     editColorTrigger.addEventListener("click", event => {
         event.stopPropagation();
         const streak = getActiveStreak();
@@ -2843,6 +3274,21 @@ function bindEvents() {
     editCustomColorInput.addEventListener("input", event => {
         colorPickerMode = "edit";
         applySelectedColor(event.target.value, { remember: true, persist: true, mode: "edit" });
+    });
+
+    editTargetOptions?.addEventListener("click", event => {
+        const button = event.target.closest(".target-option");
+        if (!button || !editTargetOptions.contains(button)) return;
+        handleTargetOptionClick(button, "edit");
+    });
+
+    editCustomTargetInput?.addEventListener("input", event => {
+        handleCustomTargetInput(event.target, "edit");
+    });
+
+    editCustomTargetInput?.addEventListener("change", event => {
+        event.target.value = clampWeeklyTarget(event.target.value, 1);
+        handleCustomTargetInput(event.target, "edit");
     });
 
     confirmAddBtn.addEventListener("click", addHabit);
@@ -2934,6 +3380,10 @@ function showSignedOutScreen() {
         window.clearTimeout(colorSyncTimeout);
         colorSyncTimeout = null;
     }
+    if (targetSyncTimeout) {
+        window.clearTimeout(targetSyncTimeout);
+        targetSyncTimeout = null;
+    }
 
     currentUser = null;
     closeAllOverlays();
@@ -2951,6 +3401,10 @@ async function showSignedInScreen(user) {
     if (colorSyncTimeout) {
         window.clearTimeout(colorSyncTimeout);
         colorSyncTimeout = null;
+    }
+    if (targetSyncTimeout) {
+        window.clearTimeout(targetSyncTimeout);
+        targetSyncTimeout = null;
     }
 
     currentUser = user;
