@@ -788,6 +788,11 @@ function getInitialLanguage() {
 
 let currentLanguage = getInitialLanguage();
 
+const monthAbbreviations = {
+    en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    lt: ["SAU", "VAS", "KOV", "BAL", "GEG", "BIR", "LIE", "RGP", "RGS", "SPA", "LAP", "GRD"]
+};
+
 function t(key, vars = {}) {
     const source = translations[currentLanguage]?.[key] ?? translations.en[key] ?? key;
     if (typeof source !== "string") return source;
@@ -801,10 +806,17 @@ function getLanguageLocale() {
     return currentLanguage === "lt" ? "lt-LT" : "en-US";
 }
 
+function getMonthAbbreviation(monthIndex, language = currentLanguage) {
+    const index = Number.isInteger(monthIndex)
+        ? ((monthIndex % 12) + 12) % 12
+        : new Date().getMonth();
+    const labels = monthAbbreviations[language] || monthAbbreviations.en;
+
+    return labels[index] || monthAbbreviations.en[index] || "";
+}
+
 function getShortMonthLabel(date = new Date()) {
-    const monthIndex = date.getMonth();
-    const labels = translations[currentLanguage]?.monthsShort || translations.en.monthsShort;
-    return labels[monthIndex] || translations.en.monthsShort[monthIndex] || "";
+    return getMonthAbbreviation(date.getMonth(), currentLanguage);
 }
 
 function resolveMessageKey(keyOrText) {
@@ -2422,7 +2434,7 @@ function render() {
         const rotation = (progressPercent / 100) * 360;
         const dotRotation = isTouchDevice() ? 0 : rotation;
         const progressMarkup = weeklyHabit
-            ? `<span class="weekly-progress-value">${weeklyProgress.count}<span class="weekly-progress-divider">/</span>${weeklyProgress.target}</span><span class="month-label">${t("weeklyWeekLabel")}</span>`
+            ? `<span class="weekly-progress-value">${weeklyProgress.count}<span class="weekly-progress-divider">/</span>${weeklyProgress.target}</span><span class="month-label">${currentMonthLabel}</span>`
             : `<span class="streak-percent-value">${displayedPercent}<span class="percent-sign">%</span></span><span class="month-label">${currentMonthLabel}</span>`;
         const identityProgress = weeklyHabit ? Math.min(1, weeklyProgress.count / weeklyProgress.target) : (isDone ? 1 : 0);
         const streakDots = recentWeekDays.map(day => {
