@@ -2477,7 +2477,6 @@ function render() {
             </div>
             <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${identityProgress};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="0">
                 <div class="streak-name">${streak.name}</div>
-                <div class="streak-insight">${getInsightMessages(streak, isDone)[0]}</div>
             </div>
         `;
 
