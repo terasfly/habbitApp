@@ -78,10 +78,6 @@
     <div id="app-shell" class="container" hidden>
         <header class="app-title-row">
             <h1 data-i18n="myHabits">My Habits</h1>
-            <div class="language-switcher title-language-switcher" role="group" aria-label="Language switcher" data-i18n-aria-label="language">
-                <button type="button" class="lang-btn active" data-lang="en" aria-label="English" aria-pressed="true" data-i18n-aria-label="languageEnglish">EN</button>
-                <button type="button" class="lang-btn" data-lang="lt" aria-label="Lithuanian" aria-pressed="false" data-i18n-aria-label="languageLithuanian">LT</button>
-            </div>
         </header>
         <div class="session-row">
             <div class="session-user" id="session-user"></div>
@@ -177,6 +173,11 @@
                 <span>F</span><span>S</span><span>S</span>
             </div>
             <div class="calendar-days" id="calendar-days"></div>
+
+            <div class="monthly-summary-box" id="monthly-summary-box">
+                <span data-i18n="monthCompleted">Month completed</span>
+                <span id="monthly-completion-percent">0%</span>
+            </div>
 
             <div class="yearly-stats-box">
                 <div class="yearly-stats-header">

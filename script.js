@@ -294,6 +294,7 @@ const translations = {
         dailyProgress: "Daily Progress",
         today: "Today",
         thisMonth: "This Month",
+        monthCompleted: "Month completed",
         bestStreak: "Best Streak",
         addHabit: "Add Habit",
         newHabit: "New Habit",
@@ -333,6 +334,14 @@ const translations = {
         heatmapCell: "{date}: {status}",
         currentStreakAria: "{count} day{plural} current streak",
         bestStreakAria: "{count} day{plural} streak",
+        dailyStreakLabel: "{count} day streak",
+        weeklyStreakLabel: "{count} week streak",
+        currentStreakDisplay: "Current: {streak}",
+        bestStreakDisplay: "Best: {streak}",
+        currentStreakDisplayCompact: "Now: {count} {unit}",
+        bestStreakDisplayCompact: "Best: {count} {unit}",
+        dailyStreakUnitCompact: "d",
+        weeklyStreakUnitCompact: "wk",
         lastSevenDaysActivity: "Last 7 days activity",
         targetQuestion: "Goal",
         targetFrequency: "Habit frequency",
@@ -533,6 +542,7 @@ const translations = {
         dailyProgress: "Dienos progresas",
         today: "Šiandien",
         thisMonth: "Šis mėnuo",
+        monthCompleted: "Mėnuo įvykdytas",
         bestStreak: "Geriausias streakas",
         addHabit: "Pridėti įprotį",
         newHabit: "Naujas įprotis",
@@ -572,6 +582,14 @@ const translations = {
         heatmapCell: "{date}: {status}",
         currentStreakAria: "Dabartinis streakas: {count} d.",
         bestStreakAria: "Geriausias streakas: {count} d.",
+        dailyStreakLabel: "{count} d. serija",
+        weeklyStreakLabel: "{count} sav. serija",
+        currentStreakDisplay: "Esama: {streak}",
+        bestStreakDisplay: "Rekordas: {streak}",
+        currentStreakDisplayCompact: "Dabar: {count} {unit}",
+        bestStreakDisplayCompact: "Rek.: {count} {unit}",
+        dailyStreakUnitCompact: "d.",
+        weeklyStreakUnitCompact: "sav.",
         lastSevenDaysActivity: "Paskutinių 7 dienų aktyvumas",
         targetQuestion: "Tikslas",
         targetFrequency: "Įpročio dažnis",
@@ -1295,7 +1313,7 @@ function addDays(date, days) {
 function getWeeklyHistoryCounts(history) {
     const counts = new Map();
 
-    [...new Set(history || [])].forEach(dateKey => {
+    normalizeHistory(history).forEach(dateKey => {
         const date = parseDateKey(dateKey);
         if (!date) return;
 
@@ -1310,7 +1328,7 @@ function getWeeklyProgress(streak, referenceDate = new Date()) {
     const target = getHabitWeeklyTarget(streak);
     const weekStart = getWeekStart(referenceDate);
     const weekEnd = getWeekEnd(weekStart);
-    const completedDays = new Set(streak?.history || []);
+    const completedDays = new Set(normalizeHistory(streak?.history));
     let count = 0;
 
     completedDays.forEach(dateKey => {
@@ -1326,6 +1344,28 @@ function getWeeklyProgress(streak, referenceDate = new Date()) {
         isComplete: count >= target,
         weekStartKey: getDStr(weekStart),
         weekEndKey: getDStr(weekEnd)
+    };
+}
+
+function getMonthlyCompletionStats(streak, referenceDate = new Date()) {
+    const year = referenceDate.getFullYear();
+    const month = referenceDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}-`;
+    const completedCount = normalizeHistory(streak?.history)
+        .filter(dateKey => dateKey.startsWith(monthPrefix))
+        .length;
+    const target = isWeeklyHabit(streak)
+        ? Math.ceil((daysInMonth / 7) * getHabitWeeklyTarget(streak))
+        : daysInMonth;
+    const percent = target > 0
+        ? Math.min(100, Math.round((completedCount / target) * 100))
+        : 0;
+
+    return {
+        completedCount,
+        target,
+        percent
     };
 }
 
@@ -1385,6 +1425,33 @@ function getHabitBestStreak(streak) {
     return isWeeklyHabit(streak)
         ? getBestWeeklyStreak(streak)
         : getBestStreak(streak?.history || []);
+}
+
+function getHabitStreakLabel(streak, count = getHabitCurrentStreak(streak)) {
+    return t(isWeeklyHabit(streak) ? "weeklyStreakLabel" : "dailyStreakLabel", { count });
+}
+
+function getHabitStreakCompactUnit(streak) {
+    return t(isWeeklyHabit(streak) ? "weeklyStreakUnitCompact" : "dailyStreakUnitCompact");
+}
+
+function getHabitStreakDisplayMessages(streak) {
+    const currentCount = getHabitCurrentStreak(streak);
+    const bestCount = getHabitBestStreak(streak);
+    const unit = getHabitStreakCompactUnit(streak);
+
+    return [
+        {
+            icon: "🔥",
+            full: t("currentStreakDisplay", { streak: getHabitStreakLabel(streak, currentCount) }),
+            compact: t("currentStreakDisplayCompact", { count: currentCount, unit })
+        },
+        {
+            icon: "🏆",
+            full: t("bestStreakDisplay", { streak: getHabitStreakLabel(streak, bestCount) }),
+            compact: t("bestStreakDisplayCompact", { count: bestCount, unit })
+        }
+    ];
 }
 
 function createId() {
@@ -1624,16 +1691,30 @@ function loadHabitsFromLocal(uid = currentUser?.uid) {
 }
 
 function normalizeHistory(history) {
+    const normalizeItem = item => {
+        if (typeof item === "string") {
+            const date = parseDateKey(item.trim().slice(0, 10));
+            return date ? getDStr(date) : null;
+        }
+
+        if (item instanceof Date && !Number.isNaN(item.getTime())) {
+            return getDStr(item);
+        }
+
+        if (item && typeof item.toDate === "function") {
+            const date = item.toDate();
+            return date instanceof Date && !Number.isNaN(date.getTime()) ? getDStr(date) : null;
+        }
+
+        return null;
+    };
+
     if (Array.isArray(history)) {
-        return history
-            .filter(item => typeof item === "string")
-            .sort();
+        return [...new Set(history.map(normalizeItem).filter(Boolean))].sort();
     }
 
     if (history && Array.isArray(history.days)) {
-        return history.days
-            .filter(item => typeof item === "string")
-            .sort();
+        return [...new Set(history.days.map(normalizeItem).filter(Boolean))].sort();
     }
 
     return [];
@@ -1711,12 +1792,13 @@ async function syncHabitToFirebase(streak, user = requireCurrentUser()) {
 }
 
 function calculateMonthlyRecord(history) {
-    if (!history || !history.length) return 0;
+    const normalizedHistory = normalizeHistory(history);
+    if (!normalizedHistory.length) return 0;
 
     const now = new Date();
     const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-    const monthHistory = history.filter(date => date.startsWith(prefix)).sort();
+    const monthHistory = normalizedHistory.filter(date => date.startsWith(prefix));
 
     if (!monthHistory.length) return 0;
 
@@ -1742,7 +1824,7 @@ function calculateMonthlyRecord(history) {
 function getCompletedDaysThisMonth(history) {
     const now = new Date();
     const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    return (history || []).filter(date => date.startsWith(prefix)).length;
+    return normalizeHistory(history).filter(date => date.startsWith(prefix)).length;
 }
 
 function getMonthlyCompletionRate(history) {
@@ -1754,7 +1836,7 @@ function getMonthlyCompletionRate(history) {
 }
 
 function getCurrentStreak(history) {
-    const completedDays = new Set(history || []);
+    const completedDays = new Set(normalizeHistory(history));
     const cursor = new Date();
     cursor.setHours(0, 0, 0, 0);
 
@@ -1773,7 +1855,7 @@ function getCurrentStreak(history) {
 }
 
 function getBestStreak(history) {
-    const completedDays = [...new Set(history || [])].sort();
+    const completedDays = normalizeHistory(history);
     let bestStreak = 0;
     let currentStreak = 0;
     let previousTime = null;
@@ -1915,6 +1997,7 @@ function getWeekProgress(history) {
 }
 
 const insightMessagesById = {};
+const streakDisplayMessagesById = {};
 let insightRotationTimer = null;
 
 function getWeeklyInsightMessages(streak) {
@@ -1987,16 +2070,54 @@ function fadeInsightText(el, text) {
     }, 240);
 }
 
+function setStreakSublineContent(el, message) {
+    if (!el || !message) return;
+
+    el.innerHTML = "";
+
+    const icon = document.createElement("span");
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = message.icon;
+
+    const fullText = document.createElement("span");
+    fullText.className = "streak-subline-text-full";
+    fullText.textContent = message.full;
+
+    const compactText = document.createElement("span");
+    compactText.className = "streak-subline-text-compact";
+    compactText.textContent = message.compact;
+
+    el.append(icon, fullText, compactText);
+}
+
+function fadeStreakSubline(el, message) {
+    if (!el || !message) return;
+
+    el.classList.add("streak-subline-fade-out");
+    window.setTimeout(() => {
+        setStreakSublineContent(el, message);
+        el.classList.remove("streak-subline-fade-out");
+    }, 180);
+}
+
 function updateAllInsights() {
     document.querySelectorAll(".streak-identity[data-habit-id]").forEach(identity => {
         const habitId = identity.dataset.habitId;
         const messages = insightMessagesById[habitId];
-        if (!messages || messages.length < 2) return;
+        const streakMessages = streakDisplayMessagesById[habitId];
+        const nextIndex = (Number(identity.dataset.insightIndex || 0) + 1) % 2;
 
-        const nextIndex = (Number(identity.dataset.insightIndex || 0) + 1) % messages.length;
         identity.dataset.insightIndex = nextIndex;
+
+        const sublineEl = identity.querySelector(".streak-subline");
+        if (sublineEl && streakMessages?.[nextIndex]) {
+            fadeStreakSubline(sublineEl, streakMessages[nextIndex]);
+            const habitName = identity.querySelector(".streak-name")?.textContent || "";
+            identity.setAttribute("aria-label", `${habitName}. ${streakMessages[nextIndex].full}`);
+        }
+
         const insightEl = identity.querySelector(".streak-insight");
-        if (insightEl) {
+        if (insightEl && messages?.length > 1) {
             fadeInsightText(insightEl, messages[nextIndex]);
         }
     });
@@ -2006,7 +2127,7 @@ function startInsightRotation() {
     if (insightRotationTimer) {
         window.clearInterval(insightRotationTimer);
     }
-    insightRotationTimer = window.setInterval(updateAllInsights, 4600);
+    insightRotationTimer = window.setInterval(updateAllInsights, 5000);
 }
 
 function parseHexColor(hex) {
@@ -2418,18 +2539,18 @@ function render() {
 
     streaks.forEach(streak => {
         const weeklyHabit = isWeeklyHabit(streak);
+        const habitHistory = normalizeHistory(streak.history);
         const weeklyProgress = weeklyHabit ? getWeeklyProgress(streak) : null;
-        const completedToday = (streak.history || []).includes(todayStr);
+        const completedToday = habitHistory.includes(todayStr);
         const isDone = weeklyHabit ? weeklyProgress.isComplete : completedToday;
         const color = streak.color || "#63b3ed";
         const colorRgb = hexToRgb(color);
-        const stats = weeklyHabit ? { percent: weeklyProgress.percent } : getMonthProgress(streak.history || []);
-        const currentStreak = getHabitCurrentStreak(streak);
-        const bestStreak = weeklyHabit ? currentStreak : getHabitBestStreak(streak);
-        const streakLevel = getStreakLevel(currentStreak);
+        const stats = weeklyHabit ? { percent: weeklyProgress.percent } : getMonthProgress(habitHistory);
+        const streakDisplayMessages = getHabitStreakDisplayMessages(streak);
+        const currentStreakMessage = streakDisplayMessages[0];
         const displayedPercent = Math.max(0, Math.min(100, Math.round(stats.percent)));
         const percentTone = getHabitPercentTone(displayedPercent);
-        const recentWeekDays = getRecentWeekDays(streak.history || []);
+        const recentWeekDays = getRecentWeekDays(habitHistory);
         const progressPercent = Math.max(0, Math.min(100, stats.percent));
         const rotation = (progressPercent / 100) * 360;
         const dotRotation = isTouchDevice() ? 0 : rotation;
@@ -2468,15 +2589,15 @@ function render() {
                     <div class="streak-dots" aria-label="Last 7 days activity">
                         ${streakDots}
                     </div>
-                    <div class="separator"></div>
-                    <div class="best-label streak-fire streak-fire-${streakLevel.id}" aria-label="${bestStreak} day${bestStreak === 1 ? "" : "s"} streak">
-                        <span class="streak-fire-count">${bestStreak}</span>
-                        <span class="streak-fire-icon" aria-hidden="true">🔥</span>
-                    </div>
                 </div>
             </div>
             <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${identityProgress};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="0">
                 <div class="streak-name">${streak.name}</div>
+                <div class="streak-subline">
+                    <span aria-hidden="true">${currentStreakMessage.icon}</span>
+                    <span class="streak-subline-text-full">${currentStreakMessage.full}</span>
+                    <span class="streak-subline-text-compact">${currentStreakMessage.compact}</span>
+                </div>
             </div>
         `;
 
@@ -2485,12 +2606,9 @@ function render() {
             deleteButton.setAttribute("aria-label", t("delete"));
             deleteButton.innerHTML = "&times;";
         }
+        streakDisplayMessagesById[streak.id] = streakDisplayMessages;
+        card.querySelector(".streak-identity")?.setAttribute("aria-label", `${streak.name}. ${currentStreakMessage.full}`);
         card.querySelector(".streak-dots")?.setAttribute("aria-label", t("lastSevenDaysActivity"));
-        card.querySelector(".best-label")?.setAttribute("aria-label", t(weeklyHabit ? "weeklyStreakAria" : "bestStreakAria", {
-            count: bestStreak,
-            plural: bestStreak === 1 ? "" : "s"
-        }));
-        card.querySelector(".streak-count")?.after(card.querySelector(".best-label"));
 
         insightMessagesById[streak.id] = getInsightMessages(streak, isDone);
 
@@ -2568,6 +2686,18 @@ function askDelete(id) {
     deleteOverlay.style.display = "flex";
 }
 
+function updateMonthlyCompletionSummary(streak, stats) {
+    const summary = document.getElementById("monthly-summary-box");
+    const percent = document.getElementById("monthly-completion-percent");
+    if (!summary || !percent) return;
+
+    const color = streak.color || selColor;
+    summary.style.setProperty("--habit-color", color);
+    summary.style.setProperty("--habit-rgb", hexToRgb(color));
+    summary.classList.toggle("is-success", stats.percent >= 80);
+    percent.innerText = `${stats.percent}%`;
+}
+
 function renderCalendar() {
     const streak = streaks.find(item => item.id === activeId);
     if (!streak) return;
@@ -2623,6 +2753,11 @@ function renderCalendar() {
 
         grid.appendChild(dayEl);
     }
+
+    updateMonthlyCompletionSummary(
+        streak,
+        getMonthlyCompletionStats(streak, new Date(year, month, 1))
+    );
 }
 
 async function toggleDay(id, dStr) {
