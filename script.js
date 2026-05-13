@@ -2147,7 +2147,7 @@ function startInsightRotation() {
     if (insightRotationTimer) {
         window.clearInterval(insightRotationTimer);
     }
-    insightRotationTimer = window.setInterval(updateAllInsights, 3000);
+    insightRotationTimer = window.setInterval(updateAllInsights, 5000);
 }
 
 function parseHexColor(hex) {
