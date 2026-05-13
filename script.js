@@ -334,14 +334,16 @@ const translations = {
         heatmapCell: "{date}: {status}",
         currentStreakAria: "{count} day{plural} current streak",
         bestStreakAria: "{count} day{plural} streak",
-        dailyStreakLabel: "{count} day streak",
-        weeklyStreakLabel: "{count} week streak",
+        dailyStreakLabel: "{count} {unit} streak",
+        weeklyStreakLabel: "{count} {unit} streak",
         currentStreakDisplay: "Current: {streak}",
         bestStreakDisplay: "Best: {streak}",
         currentStreakDisplayCompact: "Now: {count} {unit}",
         bestStreakDisplayCompact: "Best: {count} {unit}",
-        dailyStreakUnitCompact: "d",
-        weeklyStreakUnitCompact: "wk",
+        dailyStreakUnitOne: "day",
+        dailyStreakUnitMany: "days",
+        weeklyStreakUnitOne: "week",
+        weeklyStreakUnitMany: "weeks",
         lastSevenDaysActivity: "Last 7 days activity",
         targetQuestion: "Goal",
         targetFrequency: "Habit frequency",
@@ -582,14 +584,16 @@ const translations = {
         heatmapCell: "{date}: {status}",
         currentStreakAria: "Dabartinis streakas: {count} d.",
         bestStreakAria: "Geriausias streakas: {count} d.",
-        dailyStreakLabel: "{count} d. serija",
-        weeklyStreakLabel: "{count} sav. serija",
+        dailyStreakLabel: "{count} {unit} serija",
+        weeklyStreakLabel: "{count} {unit} serija",
         currentStreakDisplay: "Esama: {streak}",
         bestStreakDisplay: "Rekordas: {streak}",
         currentStreakDisplayCompact: "Dabar: {count} {unit}",
         bestStreakDisplayCompact: "Rek.: {count} {unit}",
-        dailyStreakUnitCompact: "d.",
-        weeklyStreakUnitCompact: "sav.",
+        dailyStreakUnitOne: "d.",
+        dailyStreakUnitMany: "d.",
+        weeklyStreakUnitOne: "sav.",
+        weeklyStreakUnitMany: "sav.",
         lastSevenDaysActivity: "Paskutinių 7 dienų aktyvumas",
         targetQuestion: "Tikslas",
         targetFrequency: "Įpročio dažnis",
@@ -1427,29 +1431,45 @@ function getHabitBestStreak(streak) {
         : getBestStreak(streak?.history || []);
 }
 
-function getHabitStreakLabel(streak, count = getHabitCurrentStreak(streak)) {
-    return t(isWeeklyHabit(streak) ? "weeklyStreakLabel" : "dailyStreakLabel", { count });
+function getHabitStreakUnit(streak, count) {
+    const target = isWeeklyHabit(streak) ? "weekly" : "daily";
+    const amount = Number(count);
+    const suffix = amount === 1 ? "One" : "Many";
+
+    return t(`${target}StreakUnit${suffix}`);
 }
 
-function getHabitStreakCompactUnit(streak) {
-    return t(isWeeklyHabit(streak) ? "weeklyStreakUnitCompact" : "dailyStreakUnitCompact");
+function getHabitStreakLabel(streak, count = getHabitCurrentStreak(streak)) {
+    return t(isWeeklyHabit(streak) ? "weeklyStreakLabel" : "dailyStreakLabel", {
+        count,
+        unit: getHabitStreakUnit(streak, count)
+    });
+}
+
+function getHabitStreakCompactUnit(streak, count) {
+    return getHabitStreakUnit(streak, count);
 }
 
 function getHabitStreakDisplayMessages(streak) {
     const currentCount = getHabitCurrentStreak(streak);
     const bestCount = getHabitBestStreak(streak);
-    const unit = getHabitStreakCompactUnit(streak);
 
     return [
         {
             icon: "🔥",
             full: t("currentStreakDisplay", { streak: getHabitStreakLabel(streak, currentCount) }),
-            compact: t("currentStreakDisplayCompact", { count: currentCount, unit })
+            compact: t("currentStreakDisplayCompact", {
+                count: currentCount,
+                unit: getHabitStreakCompactUnit(streak, currentCount)
+            })
         },
         {
             icon: "🏆",
             full: t("bestStreakDisplay", { streak: getHabitStreakLabel(streak, bestCount) }),
-            compact: t("bestStreakDisplayCompact", { count: bestCount, unit })
+            compact: t("bestStreakDisplayCompact", {
+                count: bestCount,
+                unit: getHabitStreakCompactUnit(streak, bestCount)
+            })
         }
     ];
 }
@@ -2127,7 +2147,7 @@ function startInsightRotation() {
     if (insightRotationTimer) {
         window.clearInterval(insightRotationTimer);
     }
-    insightRotationTimer = window.setInterval(updateAllInsights, 5000);
+    insightRotationTimer = window.setInterval(updateAllInsights, 3000);
 }
 
 function parseHexColor(hex) {
