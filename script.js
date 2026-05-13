@@ -20,6 +20,7 @@ console.log("Firestore connected:", db);
 const STORAGE_KEY = "myStreaksHabits";
 const WEEKLY_TARGET_MIN = 1;
 const WEEKLY_TARGET_MAX = 7;
+const STREAK_ROTATION_INTERVAL_MS = 3000;
 
 let streaks = [];
 let activeId = null;
@@ -1450,9 +1451,16 @@ function getHabitStreakCompactUnit(streak, count) {
     return getHabitStreakUnit(streak, count);
 }
 
-function getHabitStreakDisplayMessages(streak) {
-    const currentCount = getHabitCurrentStreak(streak);
-    const bestCount = getHabitBestStreak(streak);
+function getHabitStreakStats(streak) {
+    return {
+        current: getHabitCurrentStreak(streak),
+        best: getHabitBestStreak(streak)
+    };
+}
+
+function getHabitStreakDisplayMessages(streak, stats = getHabitStreakStats(streak)) {
+    const currentCount = stats.current;
+    const bestCount = stats.best;
 
     return [
         {
@@ -2020,6 +2028,60 @@ const insightMessagesById = {};
 const streakDisplayMessagesById = {};
 let insightRotationTimer = null;
 
+function normalizeStreakDisplayIndex(index) {
+    return Number(index) === 1 ? 1 : 0;
+}
+
+function getStreakDisplayIndexById() {
+    const indexById = {};
+
+    document.querySelectorAll(".streak-identity[data-habit-id]").forEach(identity => {
+        const habitId = identity.dataset.habitId;
+        if (!habitId) return;
+
+        indexById[habitId] = normalizeStreakDisplayIndex(identity.dataset.insightIndex);
+    });
+
+    return indexById;
+}
+
+function getHabitVisibleStreakIndex(habitId) {
+    const identity = [...document.querySelectorAll(".streak-identity[data-habit-id]")]
+        .find(item => item.dataset.habitId === habitId);
+
+    return normalizeStreakDisplayIndex(identity?.dataset.insightIndex);
+}
+
+function getHabitIdentityElements(habitId) {
+    return [...document.querySelectorAll(".streak-identity[data-habit-id]")]
+        .filter(identity => identity.dataset.habitId === habitId);
+}
+
+function refreshHabitStreakMessages(streak, stats) {
+    const messages = getHabitStreakDisplayMessages(streak, stats);
+    streakDisplayMessagesById[streak.id] = messages;
+    return messages;
+}
+
+function updateHabitStreakSubline(streak, preferredIndex = null, stats = null) {
+    if (!streak) return;
+
+    const messages = refreshHabitStreakMessages(streak, stats);
+
+    getHabitIdentityElements(streak.id).forEach(identity => {
+        const messageIndex = preferredIndex === null
+            ? normalizeStreakDisplayIndex(identity.dataset.insightIndex)
+            : normalizeStreakDisplayIndex(preferredIndex);
+        const message = messages[messageIndex] || messages[0];
+        const sublineEl = identity.querySelector(".streak-subline");
+        const habitName = identity.querySelector(".streak-name")?.textContent || streak.name || "";
+
+        identity.dataset.insightIndex = String(messageIndex);
+        setStreakSublineContent(sublineEl, message);
+        identity.setAttribute("aria-label", `${habitName}. ${message.full}`);
+    });
+}
+
 function getWeeklyInsightMessages(streak) {
     const week = getWeeklyProgress(streak);
     const streakCount = getWeeklyStreak(streak);
@@ -2125,7 +2187,7 @@ function updateAllInsights() {
         const habitId = identity.dataset.habitId;
         const messages = insightMessagesById[habitId];
         const streakMessages = streakDisplayMessagesById[habitId];
-        const nextIndex = (Number(identity.dataset.insightIndex || 0) + 1) % 2;
+        const nextIndex = (normalizeStreakDisplayIndex(identity.dataset.insightIndex) + 1) % 2;
 
         identity.dataset.insightIndex = nextIndex;
 
@@ -2147,7 +2209,7 @@ function startInsightRotation() {
     if (insightRotationTimer) {
         window.clearInterval(insightRotationTimer);
     }
-    insightRotationTimer = window.setInterval(updateAllInsights, 5000);
+    insightRotationTimer = window.setInterval(updateAllInsights, STREAK_ROTATION_INTERVAL_MS);
 }
 
 function parseHexColor(hex) {
@@ -2551,7 +2613,12 @@ function showCompletionRewardForHabit(id, currentStreak) {
     addCompletionRewardToArea(dots, currentStreak, colorRgb);
 }
 
-function render() {
+function render(options = {}) {
+    const streakMessageIndexById = {
+        ...getStreakDisplayIndexById(),
+        ...(options.streakMessageIndexById || {})
+    };
+
     sortHabitsByPerformance();
     sContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
@@ -2568,6 +2635,8 @@ function render() {
         const stats = weeklyHabit ? { percent: weeklyProgress.percent } : getMonthProgress(habitHistory);
         const streakDisplayMessages = getHabitStreakDisplayMessages(streak);
         const currentStreakMessage = streakDisplayMessages[0];
+        const activeStreakMessageIndex = normalizeStreakDisplayIndex(streakMessageIndexById[streak.id]);
+        const activeStreakMessage = streakDisplayMessages[activeStreakMessageIndex] || currentStreakMessage;
         const displayedPercent = Math.max(0, Math.min(100, Math.round(stats.percent)));
         const percentTone = getHabitPercentTone(displayedPercent);
         const recentWeekDays = getRecentWeekDays(habitHistory);
@@ -2611,12 +2680,12 @@ function render() {
                     </div>
                 </div>
             </div>
-            <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${identityProgress};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="0">
+            <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${identityProgress};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="${activeStreakMessageIndex}">
                 <div class="streak-name">${streak.name}</div>
                 <div class="streak-subline">
-                    <span aria-hidden="true">${currentStreakMessage.icon}</span>
-                    <span class="streak-subline-text-full">${currentStreakMessage.full}</span>
-                    <span class="streak-subline-text-compact">${currentStreakMessage.compact}</span>
+                    <span aria-hidden="true">${activeStreakMessage.icon}</span>
+                    <span class="streak-subline-text-full">${activeStreakMessage.full}</span>
+                    <span class="streak-subline-text-compact">${activeStreakMessage.compact}</span>
                 </div>
             </div>
         `;
@@ -2627,7 +2696,7 @@ function render() {
             deleteButton.innerHTML = "&times;";
         }
         streakDisplayMessagesById[streak.id] = streakDisplayMessages;
-        card.querySelector(".streak-identity")?.setAttribute("aria-label", `${streak.name}. ${currentStreakMessage.full}`);
+        card.querySelector(".streak-identity")?.setAttribute("aria-label", `${streak.name}. ${activeStreakMessage.full}`);
         card.querySelector(".streak-dots")?.setAttribute("aria-label", t("lastSevenDaysActivity"));
 
         insightMessagesById[streak.id] = getInsightMessages(streak, isDone);
@@ -2785,6 +2854,7 @@ async function toggleDay(id, dStr) {
     const streak = streaks.find(item => item.id === id);
     if (!user || !streak) return;
 
+    const visibleStreakIndex = getHabitVisibleStreakIndex(id);
     const history = [...(streak.history || [])];
     const existingIndex = history.indexOf(dStr);
     const completedToday = existingIndex < 0 && dStr === getDStr(new Date());
@@ -2800,16 +2870,19 @@ async function toggleDay(id, dStr) {
     }
 
     history.sort();
-    streak.history = history;
+    streak.history = normalizeHistory(history);
+    const streakStats = getHabitStreakStats(streak);
+    refreshHabitStreakMessages(streak, streakStats);
     sortHabitsByPerformance();
 
     saveHabits("statusSavedLocally");
-    render();
+    render({ streakMessageIndexById: { [id]: visibleStreakIndex } });
+    updateHabitStreakSubline(streak, visibleStreakIndex, streakStats);
     renderCalendar();
     updateYearlyProgress();
 
     if (completedToday) {
-        showCompletionRewardForHabit(id, getHabitCurrentStreak(streak));
+        showCompletionRewardForHabit(id, streakStats.current);
         recentCompletionId = null;
     }
 
