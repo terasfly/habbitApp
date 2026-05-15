@@ -1,4 +1,4 @@
-const CACHE_NAME = "habit-app-v10";
+const CACHE_NAME = "habit-app-v11";
 const CORE_ASSETS = [
     "./",
     "index.html",
