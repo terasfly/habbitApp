@@ -2581,11 +2581,22 @@ function addCompletionRewardToArea(area, currentStreak, colorRgb) {
 
     const reward = document.createElement("span");
     reward.className = "streak-dots-reward";
+    reward.setAttribute("role", "status");
     reward.setAttribute("aria-label", t("currentStreakAria", {
         count: currentStreak,
         plural: currentStreak === 1 ? "" : "s"
     }));
-    reward.textContent = `🔥 ${currentStreak}`;
+
+    const fire = document.createElement("span");
+    fire.className = "completion-reward-fire";
+    fire.setAttribute("aria-hidden", "true");
+    fire.textContent = "\u{1F525}";
+
+    const number = document.createElement("span");
+    number.className = "completion-reward-number";
+    number.textContent = String(currentStreak);
+
+    reward.append(fire, number);
 
     const bubble = area.closest(".bubble");
     bubble?.classList.add("has-completion-reward");
