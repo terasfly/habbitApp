@@ -83,10 +83,10 @@ header {
 }
 
 h1 {
-    color: var(--sky-blue);
+    color: var(--danger);
     font-size: 2.2rem;
     font-weight: 900;
-    text-shadow: 0 4px 15px rgba(99, 179, 237, 0.3);
+    text-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
     letter-spacing: -1px;
 }
 
