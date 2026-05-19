@@ -2587,25 +2587,77 @@ function addCompletionRewardToArea(area, currentStreak, colorRgb) {
         plural: currentStreak === 1 ? "" : "s"
     }));
 
+    const flame = document.createElement("span");
+    flame.className = "completion-reward-flame";
+
     const fire = document.createElement("span");
     fire.className = "completion-reward-fire";
     fire.setAttribute("aria-hidden", "true");
-    fire.textContent = "\u{1F525}";
+    const rewardFlameId = `completion-reward-fire-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    fire.innerHTML = `
+        <svg class="completion-reward-fire-svg" viewBox="0 0 150 146" focusable="false">
+            <defs>
+                <linearGradient id="${rewardFlameId}-outer" x1="75" y1="4" x2="75" y2="144" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#f0441f"/>
+                    <stop offset="0.32" stop-color="#f97316"/>
+                    <stop offset="0.68" stop-color="#fb923c"/>
+                    <stop offset="1" stop-color="#fbbf24"/>
+                </linearGradient>
+                <linearGradient id="${rewardFlameId}-middle" x1="75" y1="34" x2="75" y2="135" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#ff7a1a"/>
+                    <stop offset="0.48" stop-color="#fb923c"/>
+                    <stop offset="0.82" stop-color="#facc15"/>
+                    <stop offset="1" stop-color="#f59e0b"/>
+                </linearGradient>
+                <radialGradient id="${rewardFlameId}-inner" cx="50%" cy="58%" r="62%">
+                    <stop offset="0" stop-color="#fffce7"/>
+                    <stop offset="0.36" stop-color="#fef3c7"/>
+                    <stop offset="0.70" stop-color="#fde047"/>
+                    <stop offset="1" stop-color="#fb923c"/>
+                </radialGradient>
+                <linearGradient id="${rewardFlameId}-shade" x1="35" y1="42" x2="108" y2="132" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#7c2d12" stop-opacity="0.50"/>
+                    <stop offset="0.56" stop-color="#c2410c" stop-opacity="0.18"/>
+                    <stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="${rewardFlameId}-rim" x1="104" y1="44" x2="80" y2="128" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#fed7aa" stop-opacity="0.44"/>
+                    <stop offset="0.55" stop-color="#fdba74" stop-opacity="0.18"/>
+                    <stop offset="1" stop-color="#f97316" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+            <path d="M75 4C69 25 55 35 43 48C31 61 24 78 25 94C25 119 47 138 75 144C103 138 125 119 125 94C126 78 119 61 107 48C95 35 81 25 75 4Z" fill="url(#${rewardFlameId}-outer)"/>
+            <path d="M43 49C30 67 29 95 42 115C49 126 60 136 75 144C62 129 57 110 62 91C65 78 72 66 72 49C61 57 51 56 43 49Z" fill="url(#${rewardFlameId}-shade)" opacity="0.72"/>
+            <path d="M104 50C117 69 117 97 104 116C97 128 87 137 75 144C88 127 91 108 86 90C82 75 75 63 78 45C86 53 96 57 104 50Z" fill="url(#${rewardFlameId}-rim)" opacity="0.62"/>
+            <path d="M75 35C66 55 54 65 49 82C43 104 55 126 75 136C95 126 107 104 101 82C96 65 84 55 75 35Z" fill="url(#${rewardFlameId}-middle)" opacity="0.96"/>
+            <path d="M75 58C67 73 62 84 64 98C66 112 73 121 75 125C77 121 84 112 86 98C88 84 83 73 75 58Z" fill="url(#${rewardFlameId}-inner)" opacity="0.98"/>
+            <ellipse cx="58" cy="43" rx="12" ry="24" fill="#fff7ed" opacity="0.24" transform="rotate(24 58 43)"/>
+            <ellipse cx="91" cy="67" rx="12" ry="31" fill="#fff7ed" opacity="0.15" transform="rotate(-18 91 67)"/>
+            <ellipse cx="75" cy="89" rx="18" ry="36" fill="#fff8cf" opacity="0.16"/>
+        </svg>
+    `;
 
     const number = document.createElement("span");
     number.className = "completion-reward-number";
+    number.dataset.digits = Math.min(String(currentStreak).length, 6);
     number.textContent = String(currentStreak);
 
-    reward.append(fire, number);
+    flame.append(fire, number);
+    reward.appendChild(flame);
 
     const bubble = area.closest(".bubble");
     bubble?.classList.add("has-completion-reward");
 
     area.appendChild(reward);
-    reward.addEventListener("animationend", () => {
+    const removeReward = () => {
         reward.remove();
-        bubble?.classList.remove("has-completion-reward");
-    }, { once: true });
+        if (!bubble?.querySelector(".streak-dots-reward")) {
+            bubble?.classList.remove("has-completion-reward");
+        }
+    };
+
+    reward.addEventListener("animationend", removeReward, { once: true });
+    window.setTimeout(removeReward, 2320);
 }
 
 function showCompletionRewardForHabit(id, currentStreak) {
