@@ -1748,6 +1748,10 @@ function normalizeHistory(history) {
     return [];
 }
 
+function isHabitCompletedOn(streak, dateKey = getDStr(new Date())) {
+    return normalizeHistory(streak?.history).includes(dateKey);
+}
+
 function normalizeHabitIdentity(data) {
     const name = data.name || "Unnamed habit";
     const emoji = data.emoji || "📚";
@@ -2691,8 +2695,9 @@ function render(options = {}) {
         const weeklyHabit = isWeeklyHabit(streak);
         const habitHistory = normalizeHistory(streak.history);
         const weeklyProgress = weeklyHabit ? getWeeklyProgress(streak) : null;
-        const completedToday = habitHistory.includes(todayStr);
-        const isDone = weeklyHabit ? weeklyProgress.isComplete : completedToday;
+        const isCompletedToday = isHabitCompletedOn(streak, todayStr);
+        const isDone = weeklyHabit ? weeklyProgress.isComplete : isCompletedToday;
+        const completedTodayClass = isCompletedToday ? " done-today habit-completed-today" : "";
         const color = streak.color || "#63b3ed";
         const colorRgb = hexToRgb(color);
         const stats = weeklyHabit ? { percent: weeklyProgress.percent } : getMonthProgress(habitHistory);
@@ -2709,7 +2714,7 @@ function render(options = {}) {
         const progressMarkup = weeklyHabit
             ? `<span class="weekly-progress-value">${weeklyProgress.count}<span class="weekly-progress-divider">/</span>${weeklyProgress.target}</span><span class="month-label">${currentMonthLabel}</span>`
             : `<span class="streak-percent-value">${displayedPercent}<span class="percent-sign">%</span></span><span class="month-label">${currentMonthLabel}</span>`;
-        const identityProgress = weeklyHabit ? Math.min(1, weeklyProgress.count / weeklyProgress.target) : (isDone ? 1 : 0);
+        const identityProgress = weeklyHabit ? Math.min(1, weeklyProgress.count / weeklyProgress.target) : (isCompletedToday ? 1 : 0);
         const streakDots = recentWeekDays.map(day => {
             const dotBackground = day.completed ? color : "#030712";
             const dotTextColor = getReadableTextColor(dotBackground);
@@ -2728,10 +2733,10 @@ function render(options = {}) {
                 <div class="ring-track"></div>
                 <div class="ring-progress" style="background: conic-gradient(${color} ${progressPercent}%, transparent 0)"></div>
                 <div class="ring-dot-container" style="transform: rotate(${dotRotation}deg)">
-                    <div class="ring-dot${isDone ? " done-today" : ""}"></div>
+                    <div class="ring-dot${completedTodayClass}"></div>
                 </div>
-                <div class="bubble${weeklyHabit ? " weekly-bubble" : ""}${isDone ? " done-today" : ""}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
-                    ${isDone ? `<div class="check-badge" aria-hidden="true">✓</div>` : ""}
+                <div class="bubble${weeklyHabit ? " weekly-bubble" : ""}${completedTodayClass}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
+                    ${isCompletedToday ? `<div class="check-badge" aria-hidden="true">✓</div>` : ""}
                     <div class="icon-badge">
                         <div class="streak-emoji${isCompoundEmoji(streak.emoji) ? " is-compound" : ""}">${streak.emoji || "📚"}</div>
                     </div>
@@ -2743,7 +2748,7 @@ function render(options = {}) {
                     </div>
                 </div>
             </div>
-            <div class="streak-identity${isDone ? " done-today" : ""}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${identityProgress};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="${activeStreakMessageIndex}">
+            <div class="streak-identity${completedTodayClass}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${identityProgress};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="${activeStreakMessageIndex}">
                 <div class="streak-name">${streak.name}</div>
                 <div class="streak-subline">
                     <span aria-hidden="true">${activeStreakMessage.icon}</span>

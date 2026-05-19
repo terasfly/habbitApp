@@ -1310,7 +1310,7 @@ h1 {
 .completion-reward-number {
     position: absolute;
     left: 50%;
-    top: 48.5%;
+    top: 56%;
     z-index: 3;
     display: inline-flex;
     align-items: center;
