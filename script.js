@@ -2907,6 +2907,14 @@ function render(options = {}) {
         animateMobileRingDot(card, rotation);
     };
 
+    if (masteredStreaks.length) {
+        const masteredHeader = document.createElement("div");
+        masteredHeader.className = "mastered-section-heading";
+        masteredHeader.innerHTML = `<span>${t("masteredSectionTitle")}</span>`;
+        sContainer.appendChild(masteredHeader);
+        masteredStreaks.forEach(renderHabitCard);
+    }
+
     activeStreaks.forEach(renderHabitCard);
 
     const addCard = document.createElement("div");
@@ -2920,14 +2928,6 @@ function render(options = {}) {
         </div>
     `;
     sContainer.appendChild(addCard);
-
-    if (masteredStreaks.length) {
-        const masteredHeader = document.createElement("div");
-        masteredHeader.className = "mastered-section-heading";
-        masteredHeader.innerHTML = `<span>${t("masteredSectionTitle")}</span>`;
-        sContainer.appendChild(masteredHeader);
-        masteredStreaks.forEach(renderHabitCard);
-    }
 
     startInsightRotation();
 
