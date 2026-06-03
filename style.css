@@ -1501,6 +1501,172 @@ h1 {
     text-shadow: 0 1px 10px rgba(11, 17, 28, 0.16);
 }
 
+.mastered-section-heading {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 8px 0 -2px;
+    color: rgba(255, 244, 214, 0.94);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-align: center;
+    text-transform: uppercase;
+    text-shadow:
+        0 0 14px rgba(250, 204, 21, 0.22),
+        0 0 24px rgba(34, 211, 238, 0.12);
+}
+
+.mastered-ring-wrapper {
+    background:
+        radial-gradient(circle at 50% 50%, rgba(250, 204, 21, 0.14), rgba(34, 211, 238, 0.06) 48%, rgba(255,255,255,0.02) 72%),
+        rgba(255, 255, 255, 0.035);
+    box-shadow:
+        0 0 28px rgba(250, 204, 21, 0.10),
+        0 0 48px rgba(var(--habit-rgb), 0.10);
+}
+
+.mastered-card .ring-progress {
+    box-shadow:
+        0 0 22px rgba(250, 204, 21, 0.20),
+        0 0 40px rgba(var(--habit-rgb), 0.16);
+}
+
+.ring-dot.mastered-dot {
+    width: 13px;
+    height: 13px;
+    background: #fff7d6;
+    border-color: rgba(255, 255, 255, 0.96);
+    box-shadow:
+        0 0 0 2px rgba(9, 13, 22, 0.26),
+        0 0 14px rgba(250, 204, 21, 0.72),
+        0 0 28px rgba(34, 211, 238, 0.28);
+}
+
+.bubble.mastered-bubble {
+    background:
+        radial-gradient(circle at 30% 20%, rgba(255,255,255,0.44), rgba(255,255,255,0.10) 23%, rgba(255,255,255,0) 48%),
+        radial-gradient(circle at 70% 30%, rgba(34, 211, 238, 0.24), rgba(34, 211, 238, 0) 48%),
+        radial-gradient(circle at 45% 74%, rgba(250, 204, 21, 0.26), rgba(250, 204, 21, 0) 58%),
+        linear-gradient(160deg, rgba(32, 38, 56, 0.96), rgba(8, 13, 26, 0.98) 48%, rgba(30, 26, 14, 0.96));
+    border-color: rgba(255, 240, 184, 0.34);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.26),
+        inset 0 16px 30px rgba(255,255,255,0.08),
+        inset 0 -20px 32px rgba(2, 6, 23, 0.40),
+        0 20px 40px rgba(0,0,0,0.28),
+        0 0 34px rgba(250, 204, 21, 0.20),
+        0 0 58px rgba(var(--habit-rgb), 0.18);
+    animation: mastered-bubble-pulse 3.6s ease-in-out infinite;
+}
+
+.bubble.mastered-bubble::before {
+    opacity: 1;
+    background:
+        radial-gradient(circle at 25% 18%, rgba(255,255,255,0.42), rgba(255,255,255,0.10) 24%, rgba(255,255,255,0) 55%),
+        linear-gradient(120deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 44%);
+    filter: blur(10px);
+}
+
+.bubble.mastered-bubble::after {
+    opacity: 1;
+    inset: 10%;
+    background:
+        radial-gradient(circle, rgba(250, 204, 21, 0.22), rgba(34, 211, 238, 0.14) 38%, rgba(var(--habit-rgb), 0) 72%);
+    filter: blur(18px);
+}
+
+.mastered-chip {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 6;
+    padding: 4px 7px;
+    border-radius: 999px;
+    color: #fff7d6;
+    font-size: 0.58rem;
+    font-weight: 900;
+    line-height: 1;
+    background: rgba(2, 6, 23, 0.48);
+    border: 1px solid rgba(255, 244, 214, 0.38);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.16),
+        0 0 14px rgba(250, 204, 21, 0.22);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.mastered-bubble .streak-count {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    letter-spacing: 0;
+}
+
+.mastered-bubble-value {
+    color: #fff4c7;
+    font-size: 1.45rem;
+    font-weight: 900;
+    line-height: 0.92;
+    text-shadow:
+        0 0 10px rgba(250, 204, 21, 0.54),
+        0 0 22px rgba(34, 211, 238, 0.22);
+}
+
+.mastered-bubble-label {
+    color: rgba(226, 232, 240, 0.82);
+    font-size: 0.54rem;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.mastered-card .streak-dot-mini.filled {
+    background: linear-gradient(180deg, rgba(255, 248, 209, 0.96), rgba(var(--habit-rgb), 0.84));
+    border-color: rgba(255, 244, 214, 0.72);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.32),
+        0 0 11px rgba(250, 204, 21, 0.28),
+        0 0 18px rgba(var(--habit-rgb), 0.18);
+}
+
+.streak-identity.mastered-identity {
+    background:
+        radial-gradient(circle at 50% 0%, rgba(255, 244, 214, 0.18), rgba(255,255,255,0) 54%),
+        rgba(15, 23, 42, 0.95);
+    border-color: rgba(255, 244, 214, 0.42) !important;
+    box-shadow:
+        0 14px 28px rgba(0,0,0,0.30),
+        0 0 24px rgba(250, 204, 21, 0.16),
+        0 0 36px rgba(var(--habit-rgb), 0.12);
+}
+
+.streak-identity.mastered-identity .streak-name {
+    color: #fff8df;
+}
+
+.streak-identity.mastered-identity .streak-subline {
+    color: rgba(255, 244, 214, 0.86);
+}
+
+@keyframes mastered-bubble-pulse {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+        filter: saturate(1);
+    }
+    50% {
+        transform: translateY(-2px) scale(1.012);
+        filter: saturate(1.08);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bubble.mastered-bubble {
+        animation: none;
+    }
+}
+
 .streak-identity {
     position: relative;
     display: flex;
@@ -1707,6 +1873,86 @@ h1 {
     position: relative;
 }
 
+.mastery-overlay {
+    background:
+        radial-gradient(circle at 50% 42%, rgba(250, 204, 21, 0.18), rgba(34, 211, 238, 0.08) 28%, rgba(0,0,0,0.88) 72%),
+        rgba(0,0,0,0.86);
+}
+
+.mastery-modal {
+    overflow: hidden;
+    border: 1px solid rgba(255, 244, 214, 0.20);
+    background:
+        radial-gradient(circle at 50% 0%, rgba(255, 244, 214, 0.16), rgba(255,255,255,0) 42%),
+        radial-gradient(circle at 78% 24%, rgba(34, 211, 238, 0.12), rgba(34, 211, 238, 0) 45%),
+        var(--card-bg);
+    box-shadow:
+        0 22px 52px rgba(0,0,0,0.46),
+        0 0 40px rgba(250, 204, 21, 0.14),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.mastery-popup-bubble {
+    width: 92px;
+    aspect-ratio: 1;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: #fff7d6;
+    font-size: 1.36rem;
+    font-weight: 900;
+    background:
+        radial-gradient(circle at 28% 20%, rgba(255,255,255,0.50), rgba(255,255,255,0.10) 24%, rgba(255,255,255,0) 52%),
+        radial-gradient(circle at 65% 70%, rgba(250, 204, 21, 0.30), rgba(250, 204, 21, 0) 56%),
+        linear-gradient(160deg, rgba(32, 38, 56, 0.96), rgba(8, 13, 26, 0.98));
+    border: 1px solid rgba(255, 244, 214, 0.38);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.28),
+        inset 0 -16px 28px rgba(2, 6, 23, 0.32),
+        0 0 30px rgba(250, 204, 21, 0.26),
+        0 0 58px rgba(34, 211, 238, 0.16);
+    animation: mastered-bubble-pulse 3.6s ease-in-out infinite;
+}
+
+.mastery-modal h2 {
+    margin: 0 0 10px;
+    color: #fff8df;
+    font-size: 1.22rem;
+    font-weight: 900;
+    line-height: 1.1;
+    text-shadow: 0 0 16px rgba(250, 204, 21, 0.24);
+}
+
+.mastery-modal p {
+    margin: 0 0 18px;
+    color: rgba(226, 232, 240, 0.78);
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.mastery-action-btn {
+    margin-bottom: 0;
+    background:
+        linear-gradient(135deg, rgba(250, 204, 21, 0.98), rgba(34, 211, 238, 0.88));
+    color: #07111f;
+    box-shadow:
+        0 12px 24px rgba(0,0,0,0.22),
+        0 0 24px rgba(250, 204, 21, 0.20);
+}
+
+.mastery-action-btn:disabled {
+    opacity: 0.62;
+    cursor: wait;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mastery-popup-bubble {
+        animation: none;
+    }
+}
+
 .modal-title {
     margin-bottom: 12px;
     color: var(--sky-blue);
@@ -1840,6 +2086,23 @@ input[type="number"] {
     margin-top: 10px;
     margin-bottom: 12px;
     padding: 10px;
+}
+
+.mastered-calendar-note {
+    margin: 10px 0 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    color: #fff8df;
+    font-size: 0.78rem;
+    font-weight: 900;
+    line-height: 1.2;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(255, 244, 214, 0.18), rgba(255,255,255,0) 54%),
+        rgba(2, 6, 23, 0.36);
+    border: 1px solid rgba(255, 244, 214, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.10),
+        0 0 20px rgba(250, 204, 21, 0.10);
 }
 
 .target-question {
@@ -2357,6 +2620,20 @@ input[type="number"] {
 .calendar-day.future {
     opacity: 0.15;
     cursor: default;
+}
+
+.calendar-days-mastered .calendar-day {
+    cursor: default;
+}
+
+.calendar-day.mastered-locked {
+    opacity: 0.72;
+}
+
+.calendar-day.mastered-locked.today {
+    box-shadow:
+        inset 0 0 0 1.5px rgba(255, 244, 214, 0.28),
+        0 0 14px rgba(250, 204, 21, 0.12);
 }
 
 .monthly-summary-box {

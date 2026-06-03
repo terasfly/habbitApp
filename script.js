@@ -21,6 +21,9 @@ const STORAGE_KEY = "myStreaksHabits";
 const WEEKLY_TARGET_MIN = 1;
 const WEEKLY_TARGET_MAX = 7;
 const STREAK_ROTATION_INTERVAL_MS = 3000;
+const MASTERED_STREAK_DAYS = 40;
+const HABIT_STATUS_ACTIVE = "active";
+const HABIT_STATUS_MASTERED = "mastered";
 
 let streaks = [];
 let activeId = null;
@@ -38,6 +41,7 @@ let selectedWeeklyTarget = 7;
 let colorPickerMode = "create";
 let colorSyncTimeout = null;
 let targetSyncTimeout = null;
+let masteryCandidateId = null;
 let recentCompletionId = null;
 let currentUser = null;
 let authMode = "login";
@@ -293,6 +297,12 @@ const translations = {
         signOut: "Sign out",
         signedIn: "Signed in",
         dailyProgress: "Daily Progress",
+        masteredSectionTitle: "Habits created in your brain",
+        masteredStatus: "Mastered",
+        masteredCreated: "Created",
+        masteredBubbleLabel: "Mastered",
+        masteredBubbleValue: "40+",
+        masteredCalendarNote: "Created in your brain",
         today: "Today",
         thisMonth: "This Month",
         monthCompleted: "Month completed",
@@ -1030,6 +1040,7 @@ const sContainer = document.getElementById("streaks-container");
 const modal = document.getElementById("modal-overlay");
 const calOverlay = document.getElementById("calendar-overlay");
 const deleteOverlay = document.getElementById("delete-confirm-overlay");
+const masteryOverlay = document.getElementById("mastery-overlay");
 const toast = document.getElementById("toast");
 const inputName = document.getElementById("new-streak-name");
 const iconContainer = document.getElementById("icon-selector");
@@ -1046,7 +1057,10 @@ const createCustomTargetInput = document.getElementById("create-custom-weekly-ta
 const editTargetOptions = document.getElementById("edit-target-options");
 const editCustomTargetRow = document.getElementById("edit-custom-target-row");
 const editCustomTargetInput = document.getElementById("edit-custom-weekly-target");
+const calendarTargetPanel = document.getElementById("calendar-target-panel");
+const masteredCalendarNote = document.getElementById("mastered-calendar-note");
 const confirmAddBtn = document.getElementById("confirm-add");
+const markMasteredBtn = document.getElementById("mark-mastered-btn");
 const syncStatus = document.getElementById("sync-status");
 const loadingScreen = document.getElementById("loading-screen");
 const appShell = document.getElementById("app-shell");
@@ -1263,6 +1277,28 @@ function isWeeklyHabit(streak) {
     return getHabitTargetType(streak) === "weekly";
 }
 
+function normalizeHabitStatus(status) {
+    return status === HABIT_STATUS_MASTERED
+        ? HABIT_STATUS_MASTERED
+        : HABIT_STATUS_ACTIVE;
+}
+
+function getHabitStatus(streak) {
+    return normalizeHabitStatus(streak?.status);
+}
+
+function isMasteredHabit(streak) {
+    return getHabitStatus(streak) === HABIT_STATUS_MASTERED;
+}
+
+function getHabitMasteryStreak(streak) {
+    return getCurrentStreak(streak?.history || []);
+}
+
+function isHabitReadyToMaster(streak) {
+    return !isMasteredHabit(streak) && getHabitMasteryStreak(streak) >= MASTERED_STREAK_DAYS;
+}
+
 function getNormalizedTarget(targetType, weeklyTarget) {
     const normalizedType = normalizeTargetType(targetType);
     return {
@@ -1459,6 +1495,21 @@ function getHabitStreakStats(streak) {
 }
 
 function getHabitStreakDisplayMessages(streak, stats = getHabitStreakStats(streak)) {
+    if (isMasteredHabit(streak)) {
+        return [
+            {
+                icon: t("masteredBubbleValue"),
+                full: t("masteredStatus"),
+                compact: t("masteredStatus")
+            },
+            {
+                icon: "",
+                full: t("masteredCreated"),
+                compact: t("masteredCreated")
+            }
+        ];
+    }
+
     const currentCount = stats.current;
     const bestCount = stats.best;
 
@@ -1527,6 +1578,7 @@ function closeAllOverlays() {
     modal.style.display = "none";
     calOverlay.style.display = "none";
     deleteOverlay.style.display = "none";
+    masteryOverlay.style.display = "none";
     hideColorPopover(colorPalette);
     hideColorPopover(editColorPalette);
 }
@@ -1535,6 +1587,7 @@ function resetHabitState() {
     streaks = [];
     activeId = null;
     streakToDeleteId = null;
+    masteryCandidateId = null;
     recentCompletionId = null;
     sContainer.innerHTML = "";
     document.getElementById("progress-text").innerText = "0/0";
@@ -1752,6 +1805,18 @@ function isHabitCompletedOn(streak, dateKey = getDStr(new Date())) {
     return normalizeHistory(streak?.history).includes(dateKey);
 }
 
+function getCompletedHabitsForDate(dateKey, habitsInListOrder = streaks) {
+    const trackedHabits = habitsInListOrder.filter(streak => !isMasteredHabit(streak));
+    const orderById = new Map(trackedHabits.map((streak, index) => [streak.id, index]));
+
+    return trackedHabits
+        .filter(streak => isHabitCompletedOn(streak, dateKey))
+        .sort((a, b) => (
+            (orderById.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+            (orderById.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+        ));
+}
+
 function normalizeHabitIdentity(data) {
     const name = data.name || "Unnamed habit";
     const emoji = data.emoji || "📚";
@@ -1776,6 +1841,7 @@ function normalizeHabit(data, firebaseDocId) {
         history: normalizeHistory(data.history),
         color: data.color || "#63b3ed",
         emoji: identity.emoji,
+        status: normalizeHabitStatus(data.status),
         targetType: target.targetType,
         weeklyTarget: target.weeklyTarget,
         createdAt: typeof data.createdAt === "number" ? data.createdAt : Date.now(),
@@ -1794,12 +1860,14 @@ async function loadHabitsFromFirebase(user = requireCurrentUser()) {
 
         saveHabits("");
         render();
+        maybeShowMasteryPopup();
         console.log("Loaded user habits from Firebase:", streaks);
     } catch (error) {
         console.error("Firebase load error:", error);
         if (currentUser?.uid !== user.uid) return;
         loadHabitsFromLocal(user.uid);
         render();
+        maybeShowMasteryPopup();
         saveHabits("statusLoadedLocalBackup");
         showToast("statusLoadedLocalBackup");
     }
@@ -1812,6 +1880,7 @@ async function syncHabitToFirebase(streak, user = requireCurrentUser()) {
         name: streak.name,
         history: normalizeHistory(streak.history),
         color: streak.color || "#63b3ed",
+        status: getHabitStatus(streak),
         targetType: getHabitTargetType(streak),
         weeklyTarget: getHabitWeeklyTarget(streak),
         emoji: streak.emoji || "📚",
@@ -2102,6 +2171,10 @@ function getWeeklyInsightMessages(streak) {
 }
 
 function getInsightMessages(streak, isDone) {
+    if (isMasteredHabit(streak)) {
+        return [t("masteredStatus"), t("masteredCreated")];
+    }
+
     if (isWeeklyHabit(streak)) {
         return getWeeklyInsightMessages(streak);
     }
@@ -2680,75 +2753,136 @@ function showCompletionRewardForHabit(id, currentStreak) {
     addCompletionRewardToArea(dots, currentStreak, colorRgb);
 }
 
+function getNextMasteryCandidate() {
+    return streaks.find(isHabitReadyToMaster) || null;
+}
+
+function showMasteryPopup(streak) {
+    if (!masteryOverlay || !streak) return;
+
+    masteryCandidateId = streak.id;
+    masteryOverlay.style.display = "flex";
+}
+
+function maybeShowMasteryPopup() {
+    if (!currentUser || !masteryOverlay || masteryOverlay.style.display === "flex") return;
+
+    const candidate = getNextMasteryCandidate();
+    if (candidate) {
+        showMasteryPopup(candidate);
+    }
+}
+
+async function markPendingHabitAsMastered() {
+    const user = currentUser;
+    const streak = streaks.find(item => item.id === masteryCandidateId);
+    if (!user || !streak) return;
+
+    markMasteredBtn.disabled = true;
+    streak.status = HABIT_STATUS_MASTERED;
+    saveHabits("statusSavedLocally");
+    masteryOverlay.style.display = "none";
+    masteryCandidateId = null;
+    render();
+
+    if (activeId === streak.id) {
+        renderCalendar();
+        updateYearlyProgress();
+    }
+
+    triggerConfetti();
+
+    try {
+        await syncHabitToFirebase(streak, user);
+        if (currentUser?.uid === user.uid) {
+            saveHabits("statusSavedToFirebase");
+        }
+    } catch (error) {
+        console.error("Firebase mastery sync error:", error);
+        if (currentUser?.uid === user.uid) {
+            saveHabits("statusSavedLocallyOnly");
+            showToast("toastFirebaseSyncFailed");
+        }
+    } finally {
+        markMasteredBtn.disabled = false;
+        window.setTimeout(maybeShowMasteryPopup, 180);
+    }
+}
+
 function render(options = {}) {
     const streakMessageIndexById = {
         ...getStreakDisplayIndexById(),
         ...(options.streakMessageIndexById || {})
     };
 
-    sortHabitsByPerformance();
     sContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
     const currentMonthLabel = getShortMonthLabel();
+    const activeStreaks = streaks.filter(streak => !isMasteredHabit(streak));
+    const masteredStreaks = streaks.filter(isMasteredHabit);
 
-    streaks.forEach(streak => {
-        const weeklyHabit = isWeeklyHabit(streak);
+    const renderHabitCard = streak => {
+        const mastered = isMasteredHabit(streak);
+        const weeklyHabit = !mastered && isWeeklyHabit(streak);
         const habitHistory = normalizeHistory(streak.history);
         const weeklyProgress = weeklyHabit ? getWeeklyProgress(streak) : null;
-        const isCompletedToday = isHabitCompletedOn(streak, todayStr);
-        const isDone = weeklyHabit ? weeklyProgress.isComplete : isCompletedToday;
+        const isCompletedToday = !mastered && isHabitCompletedOn(streak, todayStr);
+        const isDone = mastered || (weeklyHabit ? weeklyProgress.isComplete : isCompletedToday);
         const completedTodayClass = isCompletedToday ? " done-today habit-completed-today" : "";
         const color = streak.color || "#63b3ed";
         const colorRgb = hexToRgb(color);
-        const stats = weeklyHabit ? { percent: weeklyProgress.percent } : getMonthProgress(habitHistory);
+        const stats = mastered ? { percent: 100 } : (weeklyHabit ? { percent: weeklyProgress.percent } : getMonthProgress(habitHistory));
         const streakDisplayMessages = getHabitStreakDisplayMessages(streak);
         const currentStreakMessage = streakDisplayMessages[0];
         const activeStreakMessageIndex = normalizeStreakDisplayIndex(streakMessageIndexById[streak.id]);
         const activeStreakMessage = streakDisplayMessages[activeStreakMessageIndex] || currentStreakMessage;
         const displayedPercent = Math.max(0, Math.min(100, Math.round(stats.percent)));
         const percentTone = getHabitPercentTone(displayedPercent);
-        const recentWeekDays = getRecentWeekDays(habitHistory);
+        const recentWeekDays = getRecentWeekDays(mastered ? [] : habitHistory);
         const progressPercent = Math.max(0, Math.min(100, stats.percent));
         const rotation = (progressPercent / 100) * 360;
         const dotRotation = isTouchDevice() ? 0 : rotation;
-        const progressMarkup = weeklyHabit
+        const progressMarkup = mastered
+            ? `<span class="mastered-bubble-value">${t("masteredBubbleValue")}</span><span class="mastered-bubble-label">${t("masteredBubbleLabel")}</span>`
+            : weeklyHabit
             ? `<span class="weekly-progress-value">${weeklyProgress.count}<span class="weekly-progress-divider">/</span>${weeklyProgress.target}</span><span class="month-label">${currentMonthLabel}</span>`
             : `<span class="streak-percent-value">${displayedPercent}<span class="percent-sign">%</span></span><span class="month-label">${currentMonthLabel}</span>`;
-        const identityProgress = weeklyHabit ? Math.min(1, weeklyProgress.count / weeklyProgress.target) : (isCompletedToday ? 1 : 0);
+        const identityProgress = mastered ? 1 : (weeklyHabit ? Math.min(1, weeklyProgress.count / weeklyProgress.target) : (isCompletedToday ? 1 : 0));
         const streakDots = recentWeekDays.map(day => {
-            const dotBackground = day.completed ? color : "#030712";
+            const dotCompleted = mastered || day.completed;
+            const dotBackground = dotCompleted ? color : "#030712";
             const dotTextColor = getReadableTextColor(dotBackground);
 
             return `
-                <span class="streak-dot-mini${day.completed ? " filled" : ""}${day.isToday ? " is-today" : ""}${streak.id === recentCompletionId && day.isToday && day.completed ? " recent-hit" : ""}" style="--dot-text-color: ${dotTextColor};" aria-label="${day.dateKey} ${day.completed ? t("completed") : t("notCompleted")}">${day.dayNumber}</span>
+                <span class="streak-dot-mini${dotCompleted ? " filled" : ""}${day.isToday ? " is-today" : ""}${streak.id === recentCompletionId && day.isToday && dotCompleted ? " recent-hit" : ""}" style="--dot-text-color: ${dotTextColor};" aria-label="${day.dateKey} ${dotCompleted ? t("completed") : t("notCompleted")}">${day.dayNumber}</span>
             `;
         }).join("");
 
         const card = document.createElement("div");
-        card.className = `streak-card${weeklyHabit ? " weekly-card" : ""}`;
+        card.className = `streak-card${weeklyHabit ? " weekly-card" : ""}${mastered ? " mastered-card" : ""}`;
 
         card.innerHTML = `
             <button class="delete-btn" data-action="delete" data-id="${streak.id}">✕</button>
-            <div class="ring-wrapper" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
+            <div class="ring-wrapper${mastered ? " mastered-ring-wrapper" : ""}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                 <div class="ring-track"></div>
                 <div class="ring-progress" style="background: conic-gradient(${color} ${progressPercent}%, transparent 0)"></div>
                 <div class="ring-dot-container" style="transform: rotate(${dotRotation}deg)">
-                    <div class="ring-dot${completedTodayClass}"></div>
+                    <div class="ring-dot${completedTodayClass}${mastered ? " mastered-dot" : ""}"></div>
                 </div>
-                <div class="bubble${weeklyHabit ? " weekly-bubble" : ""}${completedTodayClass}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
-                    ${isCompletedToday ? `<div class="check-badge" aria-hidden="true">✓</div>` : ""}
+                <div class="bubble${weeklyHabit ? " weekly-bubble" : ""}${mastered ? " mastered-bubble" : ""}${completedTodayClass}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
+                    ${mastered ? `<div class="mastered-chip">${t("masteredBubbleValue")}</div>` : (isCompletedToday ? `<div class="check-badge" aria-hidden="true">✓</div>` : "")}
                     <div class="icon-badge">
                         <div class="streak-emoji${isCompoundEmoji(streak.emoji) ? " is-compound" : ""}">${streak.emoji || "📚"}</div>
                     </div>
                     <div class="streak-count" style="--percent-color: ${percentTone.color}; --percent-glow: ${percentTone.glow}; --percent-edge: ${percentTone.edge};">
                         ${progressMarkup}
                     </div>
-                    <div class="streak-dots" aria-label="Last 7 days activity">
+                    <div class="streak-dots" aria-label="${mastered ? t("masteredStatus") : t("lastSevenDaysActivity")}">
                         ${streakDots}
                     </div>
                 </div>
             </div>
-            <div class="streak-identity${completedTodayClass}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${identityProgress};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="${activeStreakMessageIndex}">
+            <div class="streak-identity${mastered ? " mastered-identity" : ""}${completedTodayClass}" style="border-color: ${color}; --habit-rgb: ${colorRgb}; --today-progress: ${identityProgress};" data-action="open" data-id="${streak.id}" data-habit-id="${streak.id}" data-insight-index="${activeStreakMessageIndex}">
                 <div class="streak-name">${streak.name}</div>
                 <div class="streak-subline">
                     <span aria-hidden="true">${activeStreakMessage.icon}</span>
@@ -2765,13 +2899,15 @@ function render(options = {}) {
         }
         streakDisplayMessagesById[streak.id] = streakDisplayMessages;
         card.querySelector(".streak-identity")?.setAttribute("aria-label", `${streak.name}. ${activeStreakMessage.full}`);
-        card.querySelector(".streak-dots")?.setAttribute("aria-label", t("lastSevenDaysActivity"));
+        card.querySelector(".streak-dots")?.setAttribute("aria-label", mastered ? t("masteredStatus") : t("lastSevenDaysActivity"));
 
         insightMessagesById[streak.id] = getInsightMessages(streak, isDone);
 
         sContainer.appendChild(card);
         animateMobileRingDot(card, rotation);
-    });
+    };
+
+    activeStreaks.forEach(renderHabitCard);
 
     const addCard = document.createElement("div");
     addCard.className = "streak-card";
@@ -2785,18 +2921,27 @@ function render(options = {}) {
     `;
     sContainer.appendChild(addCard);
 
+    if (masteredStreaks.length) {
+        const masteredHeader = document.createElement("div");
+        masteredHeader.className = "mastered-section-heading";
+        masteredHeader.innerHTML = `<span>${t("masteredSectionTitle")}</span>`;
+        sContainer.appendChild(masteredHeader);
+        masteredStreaks.forEach(renderHabitCard);
+    }
+
     startInsightRotation();
 
-    const completed = streaks.filter(streak => (
+    const completedTodayHabits = getCompletedHabitsForDate(todayStr);
+    const completed = activeStreaks.filter(streak => (
         isWeeklyHabit(streak)
             ? getWeeklyProgress(streak).isComplete
-            : (streak.history || []).includes(todayStr)
+            : completedTodayHabits.includes(streak)
     )).length;
-    const progressRatio = streaks.length ? completed / streaks.length : 0;
+    const progressRatio = activeStreaks.length ? completed / activeStreaks.length : 0;
     const progressColors = getProgressColors(progressRatio);
 
-    document.getElementById("progress-text").innerText = `${completed}/${streaks.length}`;
-    document.getElementById("progress-fill").style.width = streaks.length
+    document.getElementById("progress-text").innerText = `${completed}/${activeStreaks.length}`;
+    document.getElementById("progress-fill").style.width = activeStreaks.length
         ? `${progressRatio * 100}%`
         : "0%";
     document.getElementById("progress-fill").style.setProperty("--progress-start", progressColors.start);
@@ -2811,6 +2956,12 @@ function openStreak(id) {
         selColor = streak.color || "#63b3ed";
         selectedColorDisplay = getColorOption(selColor)?.display || selColor;
         suggestedColor = selColor;
+        const mastered = isMasteredHabit(streak);
+        if (calendarTargetPanel) calendarTargetPanel.hidden = mastered;
+        if (masteredCalendarNote) {
+            masteredCalendarNote.hidden = !mastered;
+            masteredCalendarNote.textContent = t("masteredCalendarNote");
+        }
     }
     updateEditColorControl();
     updateTargetControls("edit");
@@ -2859,6 +3010,13 @@ function renderCalendar() {
     const streak = streaks.find(item => item.id === activeId);
     if (!streak) return;
 
+    const mastered = isMasteredHabit(streak);
+    if (calendarTargetPanel) calendarTargetPanel.hidden = mastered;
+    if (masteredCalendarNote) {
+        masteredCalendarNote.hidden = !mastered;
+        masteredCalendarNote.textContent = t("masteredCalendarNote");
+    }
+
     document.getElementById("cal-title").innerText = streak.name;
     document.getElementById("cal-month").innerText = calDate.toLocaleString(getLanguageLocale(), {
         month: "long",
@@ -2867,6 +3025,7 @@ function renderCalendar() {
 
     const grid = document.getElementById("calendar-days");
     grid.innerHTML = "";
+    grid.classList.toggle("calendar-days-mastered", mastered);
 
     const year = calDate.getFullYear();
     const month = calDate.getMonth();
@@ -2898,7 +3057,9 @@ function renderCalendar() {
             dayEl.style.color = "#fff";
         }
 
-        if (dayDate <= today) {
+        if (mastered) {
+            dayEl.classList.add("mastered-locked");
+        } else if (dayDate <= today) {
             dayEl.addEventListener("click", () => {
                 dayEl.classList.add("flash-on");
                 window.setTimeout(() => dayEl.classList.remove("flash-on"), 280);
@@ -2920,7 +3081,7 @@ function renderCalendar() {
 async function toggleDay(id, dStr) {
     const user = currentUser;
     const streak = streaks.find(item => item.id === id);
-    if (!user || !streak) return;
+    if (!user || !streak || isMasteredHabit(streak)) return;
 
     const visibleStreakIndex = getHabitVisibleStreakIndex(id);
     const history = [...(streak.history || [])];
@@ -2941,8 +3102,6 @@ async function toggleDay(id, dStr) {
     streak.history = normalizeHistory(history);
     const streakStats = getHabitStreakStats(streak);
     refreshHabitStreakMessages(streak, streakStats);
-    sortHabitsByPerformance();
-
     saveHabits("statusSavedLocally");
     render({ streakMessageIndexById: { [id]: visibleStreakIndex } });
     updateHabitStreakSubline(streak, visibleStreakIndex, streakStats);
@@ -2953,6 +3112,8 @@ async function toggleDay(id, dStr) {
         showCompletionRewardForHabit(id, streakStats.current);
         recentCompletionId = null;
     }
+
+    window.setTimeout(maybeShowMasteryPopup, completedToday ? 360 : 0);
 
     try {
         await syncHabitToFirebase(streak, user);
@@ -3421,6 +3582,7 @@ async function addHabit() {
         history: [],
         color: selColor,
         emoji: selEmoji,
+        status: HABIT_STATUS_ACTIVE,
         targetType: target.targetType,
         weeklyTarget: target.weeklyTarget,
         createdAt: Date.now(),
@@ -3599,6 +3761,7 @@ function bindEvents() {
     });
 
     confirmAddBtn.addEventListener("click", addHabit);
+    markMasteredBtn.addEventListener("click", markPendingHabitAsMastered);
 
     document.getElementById("close-modal").addEventListener("click", () => {
         modal.style.display = "none";
@@ -3736,6 +3899,7 @@ async function showSignedInScreen(user) {
         if (currentUser?.uid !== user.uid) return;
         loadHabitsFromLocal(user.uid);
         render();
+        maybeShowMasteryPopup();
         saveHabits("statusLoadedLocalBackup");
         showToast("statusLoadedLocalBackup");
     } finally {

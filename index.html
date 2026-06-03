@@ -148,7 +148,7 @@
                     <div class="color-popover" id="edit-color-palette" data-mode="edit"></div>
                 </div>
             </div>
-            <div class="target-panel target-panel-compact">
+            <div class="target-panel target-panel-compact" id="calendar-target-panel">
                 <div class="target-question" data-i18n="targetQuestion">Goal</div>
                 <div class="target-options" id="edit-target-options" role="group" aria-label="Habit frequency" data-i18n-aria-label="targetFrequency">
                     <button type="button" class="target-option active" data-target-type="daily" data-weekly-target="7" aria-pressed="true" data-i18n="targetEveryDay">Daily</button>
@@ -163,6 +163,7 @@
                     <input type="number" id="edit-custom-weekly-target" min="1" max="7" step="1" value="1">
                 </label>
             </div>
+            <div class="mastered-calendar-note" id="mastered-calendar-note" hidden>Created in your brain</div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <button id="prev-month" style="background:none; border:none; color:var(--sky-blue); font-size:1.5rem;">←</button>
                 <span id="cal-month" style="font-weight:800; font-size: 0.9rem;"></span>
@@ -192,6 +193,17 @@
             </div>
 
             <button class="modal-btn cancel-btn" style="margin-top: 15px;" id="close-cal-modal" data-i18n="close">Close</button>
+        </div>
+    </div>
+
+    <div id="mastery-overlay" class="overlay mastery-overlay" role="dialog" aria-modal="true" aria-labelledby="mastery-title">
+        <div class="modal mastery-modal">
+            <div class="mastery-popup-bubble" aria-hidden="true">
+                <span>40+</span>
+            </div>
+            <h2 id="mastery-title">🔥 Habit mastered</h2>
+            <p>You completed this habit for 40 days. This habit is now part of your lifestyle.</p>
+            <button class="modal-btn save-btn mastery-action-btn" id="mark-mastered-btn">Mark as mastered</button>
         </div>
     </div>
 

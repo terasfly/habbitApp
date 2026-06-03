@@ -29,6 +29,7 @@ service cloud.firestore {
           'name',
           'history',
           'color',
+          'status',
           'emoji',
           'targetType',
           'weeklyTarget',
@@ -38,6 +39,7 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.history is list
         && request.resource.data.color is string
+        && (!request.resource.data.keys().hasAny(['status']) || request.resource.data.status in ['active', 'mastered'])
         && request.resource.data.emoji is string
         && (!request.resource.data.keys().hasAny(['targetType']) || request.resource.data.targetType in ['daily', 'weekly'])
         && (!request.resource.data.keys().hasAny(['weeklyTarget']) || (
