@@ -28,7 +28,7 @@
     <link rel="apple-touch-startup-image" href="icons/apple-splash-828x1792.png?v=6" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="icons/apple-splash-1242x2208.png?v=6" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="icons/apple-splash-750x1334.png?v=6" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="stylesheet" href="style.css?v=celebration-flame-2">
+    <link rel="stylesheet" href="style.css?v=mastered-row-1">
     <link rel="stylesheet" href="language-switcher.css?v=1">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,8 +36,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script type="module" src="script.js?v=celebration-flame-2"></script>
-    <script src="language-switcher.js?v=weekly-labels-1" defer></script>
+    <script type="module" src="script.js?v=mastered-row-1"></script>
+    <script src="language-switcher.js?v=mastered-row-1" defer></script>
 </head>
 <body>
 
@@ -100,6 +100,11 @@
                 <div class="progress-bar-fill" id="progress-fill"></div>
             </div>
         </div>
+
+        <section class="mastered-habits-section" id="mastered-habits-section" hidden>
+            <h2 class="mastered-habits-title" data-i18n="masteredSectionTitle">Mastered Habits</h2>
+            <div class="mastered-habits-row" id="mastered-habits-container" aria-label="Mastered Habits" data-i18n-aria-label="masteredSectionTitle"></div>
+        </section>
 
         <div class="streaks-grid" id="streaks-container"></div>
     </div>

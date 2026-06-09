@@ -297,7 +297,7 @@ const translations = {
         signOut: "Sign out",
         signedIn: "Signed in",
         dailyProgress: "Daily Progress",
-        masteredSectionTitle: "Habits created in your brain",
+        masteredSectionTitle: "Mastered Habits",
         masteredStatus: "Mastered",
         masteredCreated: "Created",
         masteredBubbleLabel: "Mastered",
@@ -553,6 +553,12 @@ const translations = {
         signOut: "Atsijungti",
         signedIn: "Prisijungta",
         dailyProgress: "Dienos progresas",
+        masteredSectionTitle: "Įpročiai įtvirtinti",
+        masteredStatus: "Įtvirtinta",
+        masteredCreated: "Sukurta",
+        masteredBubbleLabel: "Įtvirtinta",
+        masteredBubbleValue: "40+",
+        masteredCalendarNote: "Sukurtas tavo galvoje",
         today: "Šiandien",
         thisMonth: "Šis mėnuo",
         monthCompleted: "Mėnuo įvykdytas",
@@ -1037,6 +1043,8 @@ function updateLanguage(lang, options = {}) {
 }
 
 const sContainer = document.getElementById("streaks-container");
+const masteredHabitsSection = document.getElementById("mastered-habits-section");
+const masteredHabitsContainer = document.getElementById("mastered-habits-container");
 const modal = document.getElementById("modal-overlay");
 const calOverlay = document.getElementById("calendar-overlay");
 const deleteOverlay = document.getElementById("delete-confirm-overlay");
@@ -1295,6 +1303,18 @@ function getHabitMasteryStreak(streak) {
     return getCurrentStreak(streak?.history || []);
 }
 
+function getHabitCompletedDayCount(streak) {
+    return normalizeHistory(streak?.history).length;
+}
+
+function getHabitMasteryDayCount(streak) {
+    return Math.max(getHabitMasteryStreak(streak), getHabitCompletedDayCount(streak));
+}
+
+function isHabitMasteredForLayout(streak) {
+    return isMasteredHabit(streak) || getHabitMasteryDayCount(streak) >= MASTERED_STREAK_DAYS;
+}
+
 function isHabitReadyToMaster(streak) {
     return !isMasteredHabit(streak) && getHabitMasteryStreak(streak) >= MASTERED_STREAK_DAYS;
 }
@@ -1494,20 +1514,24 @@ function getHabitStreakStats(streak) {
     };
 }
 
+function getMasteredStreakDisplayMessages() {
+    return [
+        {
+            icon: t("masteredBubbleValue"),
+            full: t("masteredStatus"),
+            compact: t("masteredStatus")
+        },
+        {
+            icon: "",
+            full: t("masteredCreated"),
+            compact: t("masteredCreated")
+        }
+    ];
+}
+
 function getHabitStreakDisplayMessages(streak, stats = getHabitStreakStats(streak)) {
     if (isMasteredHabit(streak)) {
-        return [
-            {
-                icon: t("masteredBubbleValue"),
-                full: t("masteredStatus"),
-                compact: t("masteredStatus")
-            },
-            {
-                icon: "",
-                full: t("masteredCreated"),
-                compact: t("masteredCreated")
-            }
-        ];
+        return getMasteredStreakDisplayMessages();
     }
 
     const currentCount = stats.current;
@@ -1590,6 +1614,8 @@ function resetHabitState() {
     masteryCandidateId = null;
     recentCompletionId = null;
     sContainer.innerHTML = "";
+    if (masteredHabitsContainer) masteredHabitsContainer.innerHTML = "";
+    if (masteredHabitsSection) masteredHabitsSection.hidden = true;
     document.getElementById("progress-text").innerText = "0/0";
     document.getElementById("progress-fill").style.width = "0%";
     renderRecentColors();
@@ -1806,7 +1832,7 @@ function isHabitCompletedOn(streak, dateKey = getDStr(new Date())) {
 }
 
 function getCompletedHabitsForDate(dateKey, habitsInListOrder = streaks) {
-    const trackedHabits = habitsInListOrder.filter(streak => !isMasteredHabit(streak));
+    const trackedHabits = habitsInListOrder;
     const orderById = new Map(trackedHabits.map((streak, index) => [streak.id, index]));
 
     return trackedHabits
@@ -2816,29 +2842,34 @@ function render(options = {}) {
     };
 
     sContainer.innerHTML = "";
+    if (masteredHabitsContainer) masteredHabitsContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
     const currentMonthLabel = getShortMonthLabel();
-    const activeStreaks = streaks.filter(streak => !isMasteredHabit(streak));
-    const masteredStreaks = streaks.filter(isMasteredHabit);
+    const activeStreaks = streaks.filter(streak => !isHabitMasteredForLayout(streak));
+    const masteredStreaks = streaks.filter(isHabitMasteredForLayout);
+    const progressStreaks = streaks;
 
-    const renderHabitCard = streak => {
-        const mastered = isMasteredHabit(streak);
-        const weeklyHabit = !mastered && isWeeklyHabit(streak);
+    const renderHabitCard = (streak, targetContainer = sContainer, options = {}) => {
+        const mastered = options.mastered ?? isHabitMasteredForLayout(streak);
+        const showDelete = options.showDelete !== false;
+        const weeklyHabit = isWeeklyHabit(streak);
         const habitHistory = normalizeHistory(streak.history);
         const weeklyProgress = weeklyHabit ? getWeeklyProgress(streak) : null;
-        const isCompletedToday = !mastered && isHabitCompletedOn(streak, todayStr);
-        const isDone = mastered || (weeklyHabit ? weeklyProgress.isComplete : isCompletedToday);
+        const isCompletedToday = isHabitCompletedOn(streak, todayStr);
+        const isDone = weeklyHabit ? weeklyProgress.isComplete : isCompletedToday;
         const completedTodayClass = isCompletedToday ? " done-today habit-completed-today" : "";
         const color = streak.color || "#63b3ed";
         const colorRgb = hexToRgb(color);
         const stats = mastered ? { percent: 100 } : (weeklyHabit ? { percent: weeklyProgress.percent } : getMonthProgress(habitHistory));
-        const streakDisplayMessages = getHabitStreakDisplayMessages(streak);
+        const streakDisplayMessages = mastered
+            ? getMasteredStreakDisplayMessages()
+            : getHabitStreakDisplayMessages(streak);
         const currentStreakMessage = streakDisplayMessages[0];
         const activeStreakMessageIndex = normalizeStreakDisplayIndex(streakMessageIndexById[streak.id]);
         const activeStreakMessage = streakDisplayMessages[activeStreakMessageIndex] || currentStreakMessage;
         const displayedPercent = Math.max(0, Math.min(100, Math.round(stats.percent)));
         const percentTone = getHabitPercentTone(displayedPercent);
-        const recentWeekDays = getRecentWeekDays(mastered ? [] : habitHistory);
+        const recentWeekDays = getRecentWeekDays(habitHistory);
         const progressPercent = Math.max(0, Math.min(100, stats.percent));
         const rotation = (progressPercent / 100) * 360;
         const dotRotation = isTouchDevice() ? 0 : rotation;
@@ -2847,9 +2878,9 @@ function render(options = {}) {
             : weeklyHabit
             ? `<span class="weekly-progress-value">${weeklyProgress.count}<span class="weekly-progress-divider">/</span>${weeklyProgress.target}</span><span class="month-label">${currentMonthLabel}</span>`
             : `<span class="streak-percent-value">${displayedPercent}<span class="percent-sign">%</span></span><span class="month-label">${currentMonthLabel}</span>`;
-        const identityProgress = mastered ? 1 : (weeklyHabit ? Math.min(1, weeklyProgress.count / weeklyProgress.target) : (isCompletedToday ? 1 : 0));
+        const identityProgress = weeklyHabit ? Math.min(1, weeklyProgress.count / weeklyProgress.target) : (isCompletedToday ? 1 : 0);
         const streakDots = recentWeekDays.map(day => {
-            const dotCompleted = mastered || day.completed;
+            const dotCompleted = day.completed;
             const dotBackground = dotCompleted ? color : "#030712";
             const dotTextColor = getReadableTextColor(dotBackground);
 
@@ -2862,7 +2893,7 @@ function render(options = {}) {
         card.className = `streak-card${weeklyHabit ? " weekly-card" : ""}${mastered ? " mastered-card" : ""}`;
 
         card.innerHTML = `
-            <button class="delete-btn" data-action="delete" data-id="${streak.id}">✕</button>
+            ${showDelete ? `<button class="delete-btn" data-action="delete" data-id="${streak.id}">✕</button>` : ""}
             <div class="ring-wrapper${mastered ? " mastered-ring-wrapper" : ""}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                 <div class="ring-track"></div>
                 <div class="ring-progress" style="background: conic-gradient(${color} ${progressPercent}%, transparent 0)"></div>
@@ -2870,7 +2901,7 @@ function render(options = {}) {
                     <div class="ring-dot${completedTodayClass}${mastered ? " mastered-dot" : ""}"></div>
                 </div>
                 <div class="bubble${weeklyHabit ? " weekly-bubble" : ""}${mastered ? " mastered-bubble" : ""}${completedTodayClass}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
-                    ${mastered ? `<div class="mastered-chip">${t("masteredBubbleValue")}</div>` : (isCompletedToday ? `<div class="check-badge" aria-hidden="true">✓</div>` : "")}
+                    ${isCompletedToday ? `<div class="check-badge" aria-hidden="true">✓</div>` : (mastered ? `<div class="mastered-chip">${t("masteredBubbleValue")}</div>` : "")}
                     <div class="icon-badge">
                         <div class="streak-emoji${isCompoundEmoji(streak.emoji) ? " is-compound" : ""}">${streak.emoji || "📚"}</div>
                     </div>
@@ -2903,19 +2934,19 @@ function render(options = {}) {
 
         insightMessagesById[streak.id] = getInsightMessages(streak, isDone);
 
-        sContainer.appendChild(card);
+        targetContainer.appendChild(card);
         animateMobileRingDot(card, rotation);
     };
 
-    if (masteredStreaks.length) {
-        const masteredHeader = document.createElement("div");
-        masteredHeader.className = "mastered-section-heading";
-        masteredHeader.innerHTML = `<span>${t("masteredSectionTitle")}</span>`;
-        sContainer.appendChild(masteredHeader);
-        masteredStreaks.forEach(renderHabitCard);
+    if (masteredHabitsSection && masteredHabitsContainer) {
+        masteredHabitsSection.hidden = masteredStreaks.length === 0;
+        masteredStreaks.forEach(streak => renderHabitCard(streak, masteredHabitsContainer, {
+            mastered: true,
+            showDelete: false
+        }));
     }
 
-    activeStreaks.forEach(renderHabitCard);
+    activeStreaks.forEach(streak => renderHabitCard(streak));
 
     const addCard = document.createElement("div");
     addCard.className = "streak-card";
@@ -2931,17 +2962,17 @@ function render(options = {}) {
 
     startInsightRotation();
 
-    const completedTodayHabits = getCompletedHabitsForDate(todayStr);
-    const completed = activeStreaks.filter(streak => (
+    const completedTodayHabits = getCompletedHabitsForDate(todayStr, progressStreaks);
+    const completed = progressStreaks.filter(streak => (
         isWeeklyHabit(streak)
             ? getWeeklyProgress(streak).isComplete
             : completedTodayHabits.includes(streak)
     )).length;
-    const progressRatio = activeStreaks.length ? completed / activeStreaks.length : 0;
+    const progressRatio = progressStreaks.length ? completed / progressStreaks.length : 0;
     const progressColors = getProgressColors(progressRatio);
 
-    document.getElementById("progress-text").innerText = `${completed}/${activeStreaks.length}`;
-    document.getElementById("progress-fill").style.width = activeStreaks.length
+    document.getElementById("progress-text").innerText = `${completed}/${progressStreaks.length}`;
+    document.getElementById("progress-fill").style.width = progressStreaks.length
         ? `${progressRatio * 100}%`
         : "0%";
     document.getElementById("progress-fill").style.setProperty("--progress-start", progressColors.start);
@@ -2956,11 +2987,9 @@ function openStreak(id) {
         selColor = streak.color || "#63b3ed";
         selectedColorDisplay = getColorOption(selColor)?.display || selColor;
         suggestedColor = selColor;
-        const mastered = isMasteredHabit(streak);
-        if (calendarTargetPanel) calendarTargetPanel.hidden = mastered;
+        if (calendarTargetPanel) calendarTargetPanel.hidden = false;
         if (masteredCalendarNote) {
-            masteredCalendarNote.hidden = !mastered;
-            masteredCalendarNote.textContent = t("masteredCalendarNote");
+            masteredCalendarNote.hidden = true;
         }
     }
     updateEditColorControl();
@@ -3010,11 +3039,9 @@ function renderCalendar() {
     const streak = streaks.find(item => item.id === activeId);
     if (!streak) return;
 
-    const mastered = isMasteredHabit(streak);
-    if (calendarTargetPanel) calendarTargetPanel.hidden = mastered;
+    if (calendarTargetPanel) calendarTargetPanel.hidden = false;
     if (masteredCalendarNote) {
-        masteredCalendarNote.hidden = !mastered;
-        masteredCalendarNote.textContent = t("masteredCalendarNote");
+        masteredCalendarNote.hidden = true;
     }
 
     document.getElementById("cal-title").innerText = streak.name;
@@ -3025,7 +3052,7 @@ function renderCalendar() {
 
     const grid = document.getElementById("calendar-days");
     grid.innerHTML = "";
-    grid.classList.toggle("calendar-days-mastered", mastered);
+    grid.classList.remove("calendar-days-mastered");
 
     const year = calDate.getFullYear();
     const month = calDate.getMonth();
@@ -3057,9 +3084,7 @@ function renderCalendar() {
             dayEl.style.color = "#fff";
         }
 
-        if (mastered) {
-            dayEl.classList.add("mastered-locked");
-        } else if (dayDate <= today) {
+        if (dayDate <= today) {
             dayEl.addEventListener("click", () => {
                 dayEl.classList.add("flash-on");
                 window.setTimeout(() => dayEl.classList.remove("flash-on"), 280);
@@ -3081,7 +3106,7 @@ function renderCalendar() {
 async function toggleDay(id, dStr) {
     const user = currentUser;
     const streak = streaks.find(item => item.id === id);
-    if (!user || !streak || isMasteredHabit(streak)) return;
+    if (!user || !streak) return;
 
     const visibleStreakIndex = getHabitVisibleStreakIndex(id);
     const history = [...(streak.history || [])];
@@ -3654,6 +3679,31 @@ async function deleteHabit() {
     showToast("toastDeleted");
 }
 
+function bindHabitCardActions(container) {
+    if (!container) return;
+
+    container.addEventListener("pointerdown", event => {
+        const target = event.target.closest('[data-action="open"]');
+        if (!target || !container.contains(target)) return;
+        if (event.pointerType && event.pointerType !== "touch") return;
+        if (!event.pointerType && !isTouchDevice()) return;
+
+        pulseMobileRingDot(target);
+    });
+
+    container.addEventListener("click", event => {
+        const target = event.target.closest("[data-action]");
+        if (!target || !container.contains(target)) return;
+
+        const action = target.dataset.action;
+        const id = target.dataset.id;
+
+        if (action === "open") openStreak(id);
+        if (action === "delete") askDelete(id);
+        if (action === "add") openAddModal();
+    });
+}
+
 function bindEvents() {
     if (appEventsBound) return;
     appEventsBound = true;
@@ -3676,26 +3726,8 @@ function bindEvents() {
         button.addEventListener("click", () => togglePasswordVisibility(button.dataset.passwordToggle));
     });
 
-    sContainer.addEventListener("pointerdown", event => {
-        const target = event.target.closest('[data-action="open"]');
-        if (!target) return;
-        if (event.pointerType && event.pointerType !== "touch") return;
-        if (!event.pointerType && !isTouchDevice()) return;
-
-        pulseMobileRingDot(target);
-    });
-
-    sContainer.addEventListener("click", event => {
-        const target = event.target.closest("[data-action]");
-        if (!target) return;
-
-        const action = target.dataset.action;
-        const id = target.dataset.id;
-
-        if (action === "open") openStreak(id);
-        if (action === "delete") askDelete(id);
-        if (action === "add") openAddModal();
-    });
+    bindHabitCardActions(sContainer);
+    bindHabitCardActions(masteredHabitsContainer);
 
     rainbowTrigger.addEventListener("click", event => {
         event.stopPropagation();
