@@ -24,6 +24,13 @@ const STREAK_ROTATION_INTERVAL_MS = 3000;
 const MASTERED_STREAK_DAYS = 40;
 const HABIT_STATUS_ACTIVE = "active";
 const HABIT_STATUS_MASTERED = "mastered";
+const HABIT_MILESTONE_STORAGE_KEY = "habitMilestoneCelebrationsV1";
+const HABIT_PROGRESS_MILESTONES = [
+    { percent: 25, emoji: "\u{1F389}" },
+    { percent: 50, emoji: "\u{26A1}" },
+    { percent: 75, emoji: "\u{1F525}" },
+    { percent: 100, emoji: "\u{1F3C6}" }
+];
 
 let streaks = [];
 let activeId = null;
@@ -1430,6 +1437,30 @@ function getMonthlyCompletionStats(streak, referenceDate = new Date()) {
     };
 }
 
+function getHabitGoalProgress(streak, referenceDate = new Date()) {
+    if (isWeeklyHabit(streak)) {
+        const weeklyProgress = getWeeklyProgress(streak, referenceDate);
+        return {
+            count: weeklyProgress.count,
+            target: weeklyProgress.target,
+            percent: weeklyProgress.percent,
+            isComplete: weeklyProgress.isComplete
+        };
+    }
+
+    const monthlyStats = getMonthlyCompletionStats(streak, referenceDate);
+    const percent = monthlyStats.target > 0
+        ? Math.min(100, (monthlyStats.completedCount / monthlyStats.target) * 100)
+        : 0;
+
+    return {
+        count: monthlyStats.completedCount,
+        target: monthlyStats.target,
+        percent,
+        isComplete: monthlyStats.completedCount >= monthlyStats.target
+    };
+}
+
 function getWeeklyStreak(streak, referenceDate = new Date()) {
     const target = getHabitWeeklyTarget(streak);
     const counts = getWeeklyHistoryCounts(streak?.history || []);
@@ -1618,6 +1649,8 @@ function resetHabitState() {
     if (masteredHabitsSection) masteredHabitsSection.hidden = true;
     document.getElementById("progress-text").innerText = "0/0";
     document.getElementById("progress-fill").style.width = "0%";
+    document.getElementById("progress-percent").innerText = "0%";
+    document.querySelector(".progress-container")?.classList.remove("is-complete");
     renderRecentColors();
 }
 
@@ -2779,6 +2812,104 @@ function showCompletionRewardForHabit(id, currentStreak) {
     addCompletionRewardToArea(dots, currentStreak, colorRgb);
 }
 
+function getHabitMilestoneStorageKey() {
+    return `${HABIT_MILESTONE_STORAGE_KEY}:${currentUser?.uid || "local"}`;
+}
+
+function readHabitMilestoneState(dateKey = getDStr(new Date())) {
+    const fallback = { dateKey, fired: {} };
+
+    try {
+        const parsed = JSON.parse(localStorage.getItem(getHabitMilestoneStorageKey()) || "{}");
+        if (!parsed || parsed.dateKey !== dateKey || !parsed.fired || typeof parsed.fired !== "object") {
+            return fallback;
+        }
+
+        return {
+            dateKey,
+            fired: { ...parsed.fired }
+        };
+    } catch (error) {
+        return fallback;
+    }
+}
+
+function shouldTriggerHabitMilestoneToday(habitId, milestonePercent, dateKey = getDStr(new Date())) {
+    const state = readHabitMilestoneState(dateKey);
+    const firedKey = `${habitId}:${milestonePercent}`;
+
+    if (state.fired[firedKey]) {
+        return false;
+    }
+
+    state.fired[firedKey] = true;
+
+    try {
+        localStorage.setItem(getHabitMilestoneStorageKey(), JSON.stringify(state));
+    } catch (error) {
+        console.warn("Unable to save habit milestone state:", error);
+    }
+
+    return true;
+}
+
+function getTriggeredHabitMilestones(habitId, previousPercent, nextPercent) {
+    if (nextPercent <= previousPercent) return [];
+
+    return HABIT_PROGRESS_MILESTONES.filter(milestone => (
+        previousPercent < milestone.percent &&
+        nextPercent >= milestone.percent &&
+        shouldTriggerHabitMilestoneToday(habitId, milestone.percent)
+    ));
+}
+
+function getHabitCardsById(id) {
+    const habitId = String(id);
+    return [...document.querySelectorAll(".streak-card")].filter(card => (
+        [...card.querySelectorAll("[data-id]")].some(item => item.dataset.id === habitId)
+    ));
+}
+
+function showHabitMilestoneCelebrationsForHabit(id, milestones) {
+    if (!milestones.length) return;
+
+    const cards = getHabitCardsById(id);
+    if (!cards.length) return;
+
+    milestones.forEach((milestone, milestoneIndex) => {
+        cards.forEach(card => {
+            const ring = card.querySelector(".ring-wrapper");
+            const bubble = card.querySelector(".bubble:not(.add-bubble)");
+            if (!ring || !bubble) return;
+
+            window.setTimeout(() => {
+                ring.classList.remove("habit-milestone-pulse");
+                void ring.offsetWidth;
+                ring.classList.add("habit-milestone-pulse");
+
+                const burst = document.createElement("span");
+                burst.className = "habit-milestone-burst";
+                burst.setAttribute("aria-hidden", "true");
+                burst.textContent = milestone.emoji;
+
+                bubble.classList.add("has-milestone-burst");
+                bubble.appendChild(burst);
+
+                const removeBurst = () => {
+                    burst.remove();
+                    if (!bubble.querySelector(".habit-milestone-burst")) {
+                        bubble.classList.remove("has-milestone-burst");
+                    }
+                };
+
+                burst.addEventListener("animationend", removeBurst, { once: true });
+                window.setTimeout(removeBurst, 1200);
+                window.setTimeout(() => ring.classList.remove("habit-milestone-pulse"), 1150);
+            }, milestoneIndex * 220);
+        });
+    });
+}
+
 function getNextMasteryCandidate() {
     return streaks.find(isHabitReadyToMaster) || null;
 }
@@ -2845,22 +2976,24 @@ function render(options = {}) {
     if (masteredHabitsContainer) masteredHabitsContainer.innerHTML = "";
     const todayStr = getDStr(new Date());
     const currentMonthLabel = getShortMonthLabel();
-    const activeStreaks = streaks.filter(streak => !isHabitMasteredForLayout(streak));
+    const gridStreaks = streaks;
     const masteredStreaks = streaks.filter(isHabitMasteredForLayout);
     const progressStreaks = streaks;
 
     const renderHabitCard = (streak, targetContainer = sContainer, options = {}) => {
         const mastered = options.mastered ?? isHabitMasteredForLayout(streak);
+        const showMasteredIndicator = options.showMasteredIndicator ?? (!mastered && isHabitMasteredForLayout(streak));
         const showDelete = options.showDelete !== false;
         const weeklyHabit = isWeeklyHabit(streak);
         const habitHistory = normalizeHistory(streak.history);
         const weeklyProgress = weeklyHabit ? getWeeklyProgress(streak) : null;
+        const goalStats = getHabitGoalProgress(streak);
         const isCompletedToday = isHabitCompletedOn(streak, todayStr);
         const isDone = weeklyHabit ? weeklyProgress.isComplete : isCompletedToday;
         const completedTodayClass = isCompletedToday ? " done-today habit-completed-today" : "";
         const color = streak.color || "#63b3ed";
         const colorRgb = hexToRgb(color);
-        const stats = mastered ? { percent: 100 } : (weeklyHabit ? { percent: weeklyProgress.percent } : getMonthProgress(habitHistory));
+        const stats = mastered ? { ...goalStats, percent: 100 } : goalStats;
         const streakDisplayMessages = mastered
             ? getMasteredStreakDisplayMessages()
             : getHabitStreakDisplayMessages(streak);
@@ -2871,13 +3004,19 @@ function render(options = {}) {
         const percentTone = getHabitPercentTone(displayedPercent);
         const recentWeekDays = getRecentWeekDays(habitHistory);
         const progressPercent = Math.max(0, Math.min(100, stats.percent));
+        const hideRingMarker = mastered || isDone || progressPercent >= 100;
+        const cardStateClass = mastered
+            ? " habit-card-mastered"
+            : showMasteredIndicator
+            ? " habit-card-mastered-main"
+            : "";
         const rotation = (progressPercent / 100) * 360;
         const dotRotation = isTouchDevice() ? 0 : rotation;
         const progressMarkup = mastered
             ? `<span class="mastered-bubble-value">${t("masteredBubbleValue")}</span><span class="mastered-bubble-label">${t("masteredBubbleLabel")}</span>`
             : weeklyHabit
             ? `<span class="weekly-progress-value">${weeklyProgress.count}<span class="weekly-progress-divider">/</span>${weeklyProgress.target}</span><span class="month-label">${currentMonthLabel}</span>`
-            : `<span class="streak-percent-value">${displayedPercent}<span class="percent-sign">%</span></span><span class="month-label">${currentMonthLabel}</span>`;
+            : `<span class="habit-fraction-value">${stats.count}<span class="weekly-progress-divider">/</span>${stats.target}</span><span class="month-label">${currentMonthLabel}</span>`;
         const identityProgress = weeklyHabit ? Math.min(1, weeklyProgress.count / weeklyProgress.target) : (isCompletedToday ? 1 : 0);
         const streakDots = recentWeekDays.map(day => {
             const dotCompleted = day.completed;
@@ -2890,18 +3029,18 @@ function render(options = {}) {
         }).join("");
 
         const card = document.createElement("div");
-        card.className = `streak-card${weeklyHabit ? " weekly-card" : ""}${mastered ? " mastered-card" : ""}`;
+        card.className = `streak-card${weeklyHabit ? " weekly-card" : ""}${mastered ? " mastered-card" : ""}${cardStateClass}`;
 
         card.innerHTML = `
             ${showDelete ? `<button class="delete-btn" data-action="delete" data-id="${streak.id}">✕</button>` : ""}
-            <div class="ring-wrapper${mastered ? " mastered-ring-wrapper" : ""}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
+            <div class="ring-wrapper${mastered ? " mastered-ring-wrapper" : ""}${hideRingMarker ? " ring-marker-hidden" : ""}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
                 <div class="ring-track"></div>
                 <div class="ring-progress" style="background: conic-gradient(${color} ${progressPercent}%, transparent 0)"></div>
                 <div class="ring-dot-container" style="transform: rotate(${dotRotation}deg)">
                     <div class="ring-dot${completedTodayClass}${mastered ? " mastered-dot" : ""}"></div>
                 </div>
                 <div class="bubble${weeklyHabit ? " weekly-bubble" : ""}${mastered ? " mastered-bubble" : ""}${completedTodayClass}" data-action="open" data-id="${streak.id}" style="--habit-color: ${color}; --habit-rgb: ${colorRgb};">
-                    ${isCompletedToday ? `<div class="check-badge" aria-hidden="true">✓</div>` : (mastered ? `<div class="mastered-chip">${t("masteredBubbleValue")}</div>` : "")}
+                    ${mastered ? `<div class="mastered-chip">${t("masteredBubbleValue")}</div>` : (isCompletedToday ? `<div class="check-badge" aria-hidden="true">✓</div>` : "")}
                     <div class="icon-badge">
                         <div class="streak-emoji${isCompoundEmoji(streak.emoji) ? " is-compound" : ""}">${streak.emoji || "📚"}</div>
                     </div>
@@ -2946,7 +3085,10 @@ function render(options = {}) {
         }));
     }
 
-    activeStreaks.forEach(streak => renderHabitCard(streak));
+    gridStreaks.forEach(streak => renderHabitCard(streak, sContainer, {
+        mastered: false,
+        showMasteredIndicator: isHabitMasteredForLayout(streak)
+    }));
 
     const addCard = document.createElement("div");
     addCard.className = "streak-card";
@@ -2969,12 +3111,15 @@ function render(options = {}) {
             : completedTodayHabits.includes(streak)
     )).length;
     const progressRatio = progressStreaks.length ? completed / progressStreaks.length : 0;
+    const progressPercentValue = Math.round(progressRatio * 100);
     const progressColors = getProgressColors(progressRatio);
 
     document.getElementById("progress-text").innerText = `${completed}/${progressStreaks.length}`;
     document.getElementById("progress-fill").style.width = progressStreaks.length
         ? `${progressRatio * 100}%`
         : "0%";
+    document.getElementById("progress-percent").innerText = `${progressPercentValue}%`;
+    document.querySelector(".progress-container")?.classList.toggle("is-complete", progressStreaks.length > 0 && progressRatio >= 1);
     document.getElementById("progress-fill").style.setProperty("--progress-start", progressColors.start);
     document.getElementById("progress-fill").style.setProperty("--progress-end", progressColors.end);
 }
@@ -3109,8 +3254,10 @@ async function toggleDay(id, dStr) {
     if (!user || !streak) return;
 
     const visibleStreakIndex = getHabitVisibleStreakIndex(id);
+    const previousGoalProgress = getHabitGoalProgress(streak);
     const history = [...(streak.history || [])];
     const existingIndex = history.indexOf(dStr);
+    const addedCompletion = existingIndex < 0;
     const completedToday = existingIndex < 0 && dStr === getDStr(new Date());
 
     if (existingIndex >= 0) {
@@ -3125,6 +3272,10 @@ async function toggleDay(id, dStr) {
 
     history.sort();
     streak.history = normalizeHistory(history);
+    const nextGoalProgress = getHabitGoalProgress(streak);
+    const triggeredMilestones = addedCompletion
+        ? getTriggeredHabitMilestones(id, previousGoalProgress.percent, nextGoalProgress.percent)
+        : [];
     const streakStats = getHabitStreakStats(streak);
     refreshHabitStreakMessages(streak, streakStats);
     saveHabits("statusSavedLocally");
@@ -3137,6 +3288,8 @@ async function toggleDay(id, dStr) {
         showCompletionRewardForHabit(id, streakStats.current);
         recentCompletionId = null;
     }
+
+    showHabitMilestoneCelebrationsForHabit(id, triggeredMilestones);
 
     window.setTimeout(maybeShowMasteryPopup, completedToday ? 360 : 0);
 
