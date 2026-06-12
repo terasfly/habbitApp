@@ -2106,20 +2106,24 @@ function sortHabitsByPerformance() {
 
 function getRecentWeekDays(history) {
     const historySet = new Set(history || []);
+    const weekdayLabels = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
     const days = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayKey = getDStr(today);
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
 
-    for (let offset = 6; offset >= 0; offset--) {
-        const day = new Date(today);
-        day.setDate(today.getDate() - offset);
+    for (let index = 0; index < weekdayLabels.length; index++) {
+        const day = new Date(weekStart);
+        day.setDate(weekStart.getDate() + index);
         const dateKey = getDStr(day);
 
         days.push({
             dateKey,
-            dayNumber: day.getDate(),
+            weekdayLabel: weekdayLabels[index],
             completed: historySet.has(dateKey),
-            isToday: offset === 0
+            isToday: dateKey === todayKey
         });
     }
 
@@ -3024,7 +3028,7 @@ function render(options = {}) {
             const dotTextColor = getReadableTextColor(dotBackground);
 
             return `
-                <span class="streak-dot-mini${dotCompleted ? " filled" : ""}${day.isToday ? " is-today" : ""}${streak.id === recentCompletionId && day.isToday && dotCompleted ? " recent-hit" : ""}" style="--dot-text-color: ${dotTextColor};" aria-label="${day.dateKey} ${dotCompleted ? t("completed") : t("notCompleted")}">${day.dayNumber}</span>
+                <span class="streak-dot-mini${dotCompleted ? " filled" : ""}${day.isToday ? " is-today" : ""}${streak.id === recentCompletionId && day.isToday && dotCompleted ? " recent-hit" : ""}" style="--dot-text-color: ${dotTextColor};" aria-label="${day.weekdayLabel} ${day.dateKey} ${dotCompleted ? t("completed") : t("notCompleted")}">${day.weekdayLabel}</span>
             `;
         }).join("");
 
