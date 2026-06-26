@@ -35,6 +35,7 @@ const HABIT_PROGRESS_MILESTONES = [
 const DEFAULT_REMINDER_TIME = "18:00";
 const NOTIFICATION_SETTINGS_DOC_ID = "dailyReminder";
 const REMINDER_SETTINGS_STORAGE_KEY = "habitDailyReminderSettingsV1";
+const PENDING_REMINDER_STORAGE_KEY = "habitPendingDailyReminderV1";
 const NOTIFICATION_ICON_PATH = "icons/icon-192.png";
 const NOTIFICATION_BADGE_PATH = "icons/favicon-48.png";
 
@@ -354,6 +355,7 @@ const translations = {
         notificationStatusUnsupported: "unsupported",
         notificationTitle: "Habits",
         notificationBody: "Time to complete your habits",
+        openApp: "Open app",
         ok: "OK",
         toastNotificationEnabled: "Daily reminder enabled",
         toastNotificationDisabled: "Daily reminder disabled",
@@ -628,6 +630,7 @@ const translations = {
         notificationStatusUnsupported: "nepalaikoma",
         notificationTitle: "Įpročiai",
         notificationBody: "Laikas pažymėti šiandienos įpročius",
+        openApp: "Atidaryti app",
         ok: "OK",
         toastNotificationEnabled: "Dienos priminimas įjungtas",
         toastNotificationDisabled: "Dienos priminimas išjungtas",
@@ -1185,6 +1188,59 @@ function getReminderSettingsStorageKey(uid = currentUser?.uid) {
     return uid ? `${REMINDER_SETTINGS_STORAGE_KEY}:${uid}` : REMINDER_SETTINGS_STORAGE_KEY;
 }
 
+function getPendingReminderStorageKey(uid = currentUser?.uid) {
+    return uid ? `${PENDING_REMINDER_STORAGE_KEY}:${uid}` : PENDING_REMINDER_STORAGE_KEY;
+}
+
+function markDailyReminderPending(uid = currentUser?.uid) {
+    try {
+        localStorage.setItem(getPendingReminderStorageKey(uid), String(Date.now()));
+    } catch (error) {
+        console.warn("Pending reminder could not be saved:", error);
+    }
+
+    setDailyReminderAppBadge(1);
+}
+
+function clearPendingDailyReminder(uid = currentUser?.uid) {
+    try {
+        localStorage.removeItem(getPendingReminderStorageKey(uid));
+    } catch (error) {
+        console.warn("Pending reminder could not be cleared:", error);
+    }
+
+    clearDailyReminderAppBadge();
+}
+
+function hasPendingDailyReminder(uid = currentUser?.uid) {
+    try {
+        return Boolean(localStorage.getItem(getPendingReminderStorageKey(uid)));
+    } catch (error) {
+        return false;
+    }
+}
+
+async function setDailyReminderAppBadge(count = 1) {
+    if (!("setAppBadge" in navigator)) return;
+    if (getBrowserNotificationPermission() !== "granted") return;
+
+    try {
+        await navigator.setAppBadge(count);
+    } catch (error) {
+        console.warn("App badge could not be set:", error);
+    }
+}
+
+async function clearDailyReminderAppBadge() {
+    if (!("clearAppBadge" in navigator)) return;
+
+    try {
+        await navigator.clearAppBadge();
+    } catch (error) {
+        console.warn("App badge could not be cleared:", error);
+    }
+}
+
 function saveReminderSettingsLocally(settings = reminderSettings, uid = currentUser?.uid) {
     try {
         localStorage.setItem(getReminderSettingsStorageKey(uid), JSON.stringify(normalizeReminderSettings(settings)));
@@ -1205,6 +1261,7 @@ function loadReminderSettingsFromLocal(uid = currentUser?.uid) {
     reminderSettings.notificationPermission = getBrowserNotificationPermission();
     updateReminderSettingsUi();
     scheduleLocalDailyReminder();
+    maybeShowPendingDailyReminder();
 }
 
 function getReminderNotificationStatus() {
@@ -1262,6 +1319,7 @@ async function saveReminderSettingsToFirebase(user = currentUser) {
 
 async function persistReminderSettings(options = {}) {
     reminderSettings.notificationPermission = getBrowserNotificationPermission();
+    if (!reminderSettings.enabled) clearPendingDailyReminder();
     saveReminderSettingsLocally();
     updateReminderSettingsUi();
     scheduleLocalDailyReminder();
@@ -1290,6 +1348,7 @@ async function loadReminderSettingsFromFirebase(user = requireCurrentUser()) {
     reminderSettings.notificationPermission = getBrowserNotificationPermission();
     updateReminderSettingsUi();
     scheduleLocalDailyReminder();
+    maybeShowPendingDailyReminder();
 }
 
 function loadReminderSettingsFromFirebaseWithTimeout(user = requireCurrentUser(), timeoutMs = 6000) {
@@ -1331,7 +1390,25 @@ function showDailyReminderPopup() {
 function closeDailyReminderPopup() {
     if (!dailyReminderOverlay) return;
 
+    clearPendingDailyReminder();
     dailyReminderOverlay.style.display = "none";
+}
+
+function maybeShowPendingDailyReminder() {
+    if (!currentUser || appShell.hidden) return;
+    if (document.visibilityState !== "visible") return;
+    if (getReminderNotificationStatus() !== "enabled") return;
+    if (!hasPendingDailyReminder()) return;
+
+    showDailyReminderPopup();
+}
+
+function maybeShowReminderFromLaunchUrl() {
+    if (window.location.hash !== "#daily-reminder") return;
+
+    markDailyReminderPending();
+    showDailyReminderPopup();
+    history.replaceState(null, "", window.location.pathname + window.location.search);
 }
 
 function scheduleLocalDailyReminder() {
@@ -1346,6 +1423,8 @@ function scheduleLocalDailyReminder() {
      * Messaging or another backend scheduler.
      */
     reminderTimeoutId = window.setTimeout(async () => {
+        markDailyReminderPending();
+
         if (document.visibilityState === "visible" && !appShell.hidden) {
             showDailyReminderPopup();
         } else {
@@ -1384,7 +1463,7 @@ async function getReadyServiceWorkerRegistration() {
 }
 
 function getNotificationClickUrl() {
-    return new URL("./", window.location.href).href;
+    return new URL("./#daily-reminder", window.location.href).href;
 }
 
 async function showDailyReminderNotification() {
@@ -1398,6 +1477,15 @@ async function showDailyReminderNotification() {
         tag: "habit-daily-reminder",
         renotify: true,
         requireInteraction: true,
+        silent: false,
+        timestamp: Date.now(),
+        vibrate: [250, 100, 250, 100, 250],
+        actions: [
+            {
+                action: "open",
+                title: t("openApp")
+            }
+        ],
         data: {
             url: getNotificationClickUrl(),
             click_action: getNotificationClickUrl()
@@ -4424,6 +4512,8 @@ function bindEvents() {
         if (colorPalette.classList.contains("show")) positionColorPopover(colorPalette, rainbowTrigger);
         if (editColorPalette.classList.contains("show")) positionColorPopover(editColorPalette, editColorTrigger);
     });
+
+    document.addEventListener("visibilitychange", maybeShowPendingDailyReminder);
 }
 
 function loadHabitsFromFirebaseWithTimeout(user = requireCurrentUser(), timeoutMs = 8000) {
@@ -4474,6 +4564,7 @@ async function showSignedInScreen(user) {
     appShell.hidden = false;
     updateSessionUserCopy();
     loadReminderSettingsFromLocal(user.uid);
+    maybeShowReminderFromLaunchUrl();
     loadReminderSettingsFromFirebaseWithTimeout(user).catch(error => {
         console.warn("Reminder settings load failed or timed out:", error);
     });

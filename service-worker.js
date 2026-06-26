@@ -51,6 +51,14 @@ function getNotificationTargetUrl(data = {}) {
     return new URL(target, self.registration.scope).href;
 }
 
+function setReminderBadge(count = 1) {
+    if (!("setAppBadge" in self.navigator)) return Promise.resolve();
+
+    return self.navigator.setAppBadge(count).catch(error => {
+        console.warn("App badge could not be set:", error);
+    });
+}
+
 self.addEventListener("install", event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => cache.addAll(CORE_ASSETS))
@@ -111,25 +119,40 @@ self.addEventListener("fetch", event => {
 self.addEventListener("push", event => {
     const data = getPushPayload(event);
     const targetUrl = getNotificationTargetUrl(data);
+    const notificationPromise = self.registration.showNotification(data.title || DEFAULT_NOTIFICATION_TITLE, {
+        body: data.body || DEFAULT_NOTIFICATION_BODY,
+        icon: data.icon || DEFAULT_NOTIFICATION_ICON,
+        badge: data.badge || DEFAULT_NOTIFICATION_BADGE,
+        tag: data.tag || "habit-daily-reminder",
+        renotify: data.renotify !== false,
+        requireInteraction: data.requireInteraction !== false,
+        silent: data.silent === true,
+        timestamp: data.timestamp || Date.now(),
+        vibrate: data.vibrate || [250, 100, 250, 100, 250],
+        actions: data.actions || [
+            {
+                action: "open",
+                title: data.openActionTitle || "Open app"
+            }
+        ],
+        data: {
+            url: targetUrl,
+            click_action: targetUrl
+        }
+    });
 
     event.waitUntil(
-        self.registration.showNotification(data.title || DEFAULT_NOTIFICATION_TITLE, {
-            body: data.body || DEFAULT_NOTIFICATION_BODY,
-            icon: data.icon || DEFAULT_NOTIFICATION_ICON,
-            badge: data.badge || DEFAULT_NOTIFICATION_BADGE,
-            tag: data.tag || "habit-daily-reminder",
-            renotify: data.renotify !== false,
-            requireInteraction: data.requireInteraction !== false,
-            data: {
-                url: targetUrl,
-                click_action: targetUrl
-            }
-        })
+        Promise.all([
+            setReminderBadge(data.badgeCount || 1),
+            notificationPromise
+        ])
     );
 });
 
 self.addEventListener("notificationclick", event => {
     const targetUrl = getNotificationTargetUrl(event.notification.data);
+
+    if (event.action && event.action !== "open") return;
 
     event.notification.close();
     event.waitUntil(

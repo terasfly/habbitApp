@@ -53,6 +53,7 @@
             disableDailyReminder: "Disable daily reminder",
             reminderTime: "Reminder time",
             notificationStatusLabel: "Notification status",
+            openApp: "Open app",
             ok: "OK"
         },
         lt: {
@@ -104,6 +105,7 @@
             disableDailyReminder: "Išjungti dienos priminimą",
             reminderTime: "Priminimo laikas",
             notificationStatusLabel: "Pranešimų būsena",
+            openApp: "Atidaryti app",
             ok: "OK"
         }
     };
