@@ -1,4 +1,8 @@
-const CACHE_NAME = "habit-app-v11";
+const CACHE_NAME = "habit-app-v12";
+const DEFAULT_NOTIFICATION_TITLE = "Habits";
+const DEFAULT_NOTIFICATION_BODY = "Time to complete your habits";
+const DEFAULT_NOTIFICATION_ICON = "icons/icon-192.png";
+const DEFAULT_NOTIFICATION_BADGE = "icons/favicon-48.png";
 const CORE_ASSETS = [
     "./",
     "index.html",
@@ -29,6 +33,23 @@ const CORE_ASSETS = [
 const CORE_ASSET_PATHS = new Set(
     CORE_ASSETS.map(asset => new URL(asset, self.registration.scope).pathname)
 );
+
+function getPushPayload(event) {
+    if (!event.data) return {};
+
+    try {
+        return event.data.json();
+    } catch (error) {
+        return {
+            body: event.data.text()
+        };
+    }
+}
+
+function getNotificationTargetUrl(data = {}) {
+    const target = data.click_action || data.url || "./";
+    return new URL(target, self.registration.scope).href;
+}
 
 self.addEventListener("install", event => {
     event.waitUntil(
@@ -84,5 +105,54 @@ self.addEventListener("fetch", event => {
         caches.match(request, { ignoreSearch: true }).then(cachedResponse => {
             return cachedResponse || fetch(request);
         })
+    );
+});
+
+self.addEventListener("push", event => {
+    const data = getPushPayload(event);
+    const targetUrl = getNotificationTargetUrl(data);
+
+    event.waitUntil(
+        self.registration.showNotification(data.title || DEFAULT_NOTIFICATION_TITLE, {
+            body: data.body || DEFAULT_NOTIFICATION_BODY,
+            icon: data.icon || DEFAULT_NOTIFICATION_ICON,
+            badge: data.badge || DEFAULT_NOTIFICATION_BADGE,
+            tag: data.tag || "habit-daily-reminder",
+            renotify: data.renotify !== false,
+            requireInteraction: data.requireInteraction !== false,
+            data: {
+                url: targetUrl,
+                click_action: targetUrl
+            }
+        })
+    );
+});
+
+self.addEventListener("notificationclick", event => {
+    const targetUrl = getNotificationTargetUrl(event.notification.data);
+
+    event.notification.close();
+    event.waitUntil(
+        self.clients.matchAll({ type: "window", includeUncontrolled: true })
+            .then(clientList => {
+                const sameOriginClient = clientList.find(client => {
+                    try {
+                        return new URL(client.url).origin === new URL(targetUrl).origin;
+                    } catch (error) {
+                        return false;
+                    }
+                });
+
+                if (sameOriginClient) {
+                    if ("navigate" in sameOriginClient) {
+                        return sameOriginClient.navigate(targetUrl)
+                            .then(client => (client || sameOriginClient).focus());
+                    }
+
+                    return sameOriginClient.focus();
+                }
+
+                return self.clients.openWindow(targetUrl);
+            })
     );
 });

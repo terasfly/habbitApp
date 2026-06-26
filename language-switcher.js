@@ -47,7 +47,13 @@
             targetFivePerWeek: "5 / week",
             targetCustom: "Custom",
             targetCustomLabel: "Times / week",
-            notification: "Notification"
+            notification: "Notification",
+            dailyReminder: "Daily reminder",
+            enableDailyReminder: "Enable daily reminder",
+            disableDailyReminder: "Disable daily reminder",
+            reminderTime: "Reminder time",
+            notificationStatusLabel: "Notification status",
+            ok: "OK"
         },
         lt: {
             appTitle: "Įpročiai",
@@ -92,7 +98,13 @@
             targetFivePerWeek: "5 / sav.",
             targetCustom: "Pasirinktinai",
             targetCustomLabel: "Kartai / sav.",
-            notification: "Pranešimas"
+            notification: "Pranešimas",
+            dailyReminder: "Dienos priminimas",
+            enableDailyReminder: "Įjungti dienos priminimą",
+            disableDailyReminder: "Išjungti dienos priminimą",
+            reminderTime: "Priminimo laikas",
+            notificationStatusLabel: "Pranešimų būsena",
+            ok: "OK"
         }
     };
 

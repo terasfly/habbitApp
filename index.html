@@ -102,6 +102,23 @@
         </div>
         <div class="sync-status" id="sync-status"></div>
 
+        <section class="reminder-settings" id="reminder-settings" aria-labelledby="reminder-settings-title">
+            <div class="reminder-settings-header">
+                <div class="reminder-settings-copy">
+                    <h2 id="reminder-settings-title" data-i18n="dailyReminder">Daily reminder</h2>
+                    <div class="reminder-status-row">
+                        <span data-i18n="notificationStatusLabel">Notification status</span>
+                        <strong id="notification-status-value">Disabled</strong>
+                    </div>
+                </div>
+                <button type="button" class="reminder-toggle-btn" id="enable-reminder-btn" aria-pressed="false" data-i18n="enableDailyReminder">Enable daily reminder</button>
+            </div>
+            <label class="reminder-time-row" for="reminder-time-input">
+                <span data-i18n="reminderTime">Reminder time</span>
+                <input type="time" id="reminder-time-input" value="18:00">
+            </label>
+        </section>
+
         <div class="progress-container">
             <div class="progress-text">
                 <span data-i18n="dailyProgress">Daily Progress</span>
@@ -223,6 +240,15 @@
             <h2 id="mastery-title">🔥 Habit mastered</h2>
             <p>You completed this habit for 40 days. This habit is now part of your lifestyle.</p>
             <button class="modal-btn save-btn mastery-action-btn" id="mark-mastered-btn">Mark as mastered</button>
+        </div>
+    </div>
+
+    <div id="daily-reminder-overlay" class="overlay daily-reminder-overlay" role="dialog" aria-modal="true" aria-labelledby="daily-reminder-title">
+        <div class="modal daily-reminder-modal">
+            <div class="daily-reminder-bell" aria-hidden="true">!</div>
+            <h2 id="daily-reminder-title" data-i18n="dailyReminder">Daily reminder</h2>
+            <p data-i18n="notificationBody">Time to complete your habits</p>
+            <button type="button" class="modal-btn save-btn" id="daily-reminder-ok" data-i18n="ok">OK</button>
         </div>
     </div>
 

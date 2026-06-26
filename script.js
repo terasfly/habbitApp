@@ -10,6 +10,7 @@ import {
     deleteDoc,
     doc,
     collection,
+    getDoc,
     getDocs,
     setDoc
 } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-firestore.js";
@@ -31,6 +32,11 @@ const HABIT_PROGRESS_MILESTONES = [
     { percent: 75, emoji: "\u{1F525}" },
     { percent: 100, emoji: "\u{1F3C6}" }
 ];
+const DEFAULT_REMINDER_TIME = "18:00";
+const NOTIFICATION_SETTINGS_DOC_ID = "dailyReminder";
+const REMINDER_SETTINGS_STORAGE_KEY = "habitDailyReminderSettingsV1";
+const NOTIFICATION_ICON_PATH = "icons/icon-192.png";
+const NOTIFICATION_BADGE_PATH = "icons/favicon-48.png";
 
 let streaks = [];
 let activeId = null;
@@ -56,6 +62,13 @@ let appEventsBound = false;
 let authBubbleAnimationFrame = null;
 let authBubbleLastFrame = 0;
 let authBubbleBodies = [];
+let reminderSettings = {
+    enabled: false,
+    reminderTime: DEFAULT_REMINDER_TIME,
+    notificationPermission: "default"
+};
+let reminderTimeoutId = null;
+let serviceWorkerRegistrationPromise = null;
 
 function isTouchDevice() {
     return Boolean(
@@ -330,6 +343,24 @@ const translations = {
         no: "No",
         yes: "Yes",
         notification: "Notification",
+        dailyReminder: "Daily reminder",
+        enableDailyReminder: "Enable daily reminder",
+        disableDailyReminder: "Disable daily reminder",
+        reminderTime: "Reminder time",
+        notificationStatusLabel: "Notification status",
+        notificationStatusEnabled: "enabled",
+        notificationStatusDisabled: "disabled",
+        notificationStatusBlocked: "blocked",
+        notificationStatusUnsupported: "unsupported",
+        notificationTitle: "Habits",
+        notificationBody: "Time to complete your habits",
+        ok: "OK",
+        toastNotificationEnabled: "Daily reminder enabled",
+        toastNotificationDisabled: "Daily reminder disabled",
+        toastNotificationBlocked: "Notifications are blocked. You can enable them in browser settings.",
+        toastNotificationUnsupported: "Notifications are not supported on this browser.",
+        toastReminderTimeSaved: "Reminder time saved",
+        toastReminderSettingsFailed: "Reminder settings could not be saved",
         color: "Color",
         chooseIcon: "Choose icon",
         chooseColor: "Choose color",
@@ -586,6 +617,24 @@ const translations = {
         no: "Ne",
         yes: "Taip",
         notification: "Pranešimas",
+        dailyReminder: "Dienos priminimas",
+        enableDailyReminder: "Įjungti dienos priminimą",
+        disableDailyReminder: "Išjungti dienos priminimą",
+        reminderTime: "Priminimo laikas",
+        notificationStatusLabel: "Pranešimų būsena",
+        notificationStatusEnabled: "įjungta",
+        notificationStatusDisabled: "išjungta",
+        notificationStatusBlocked: "užblokuota",
+        notificationStatusUnsupported: "nepalaikoma",
+        notificationTitle: "Įpročiai",
+        notificationBody: "Laikas pažymėti šiandienos įpročius",
+        ok: "OK",
+        toastNotificationEnabled: "Dienos priminimas įjungtas",
+        toastNotificationDisabled: "Dienos priminimas išjungtas",
+        toastNotificationBlocked: "Pranešimai užblokuoti. Juos gali įjungti naršyklės nustatymuose.",
+        toastNotificationUnsupported: "Ši naršyklė nepalaiko pranešimų.",
+        toastReminderTimeSaved: "Priminimo laikas išsaugotas",
+        toastReminderSettingsFailed: "Priminimo nustatymų išsaugoti nepavyko",
         color: "Spalva",
         chooseIcon: "Pasirink ikoną",
         chooseColor: "Pasirink spalvą",
@@ -992,7 +1041,7 @@ function setAuthMessage(keyOrText = "", vars = {}) {
 }
 
 function refreshTranslatedMessages() {
-    [syncStatus, editColorStatus, authMessage, toast].forEach(refreshTranslatedMessage);
+    [syncStatus, editColorStatus, authMessage, toast, notificationStatusValue].forEach(refreshTranslatedMessage);
 
     if (!editColorStatus.dataset.messageKey) {
         setEditColorStatus("editColorSavedAccent");
@@ -1028,6 +1077,7 @@ function updateLanguage(lang, options = {}) {
     updateCalendarWeekdays();
     updateAuthModeCopy();
     updateSessionUserCopy();
+    updateReminderSettingsUi();
     refreshTranslatedMessages();
     refreshTemplateInputLanguage();
 
@@ -1056,6 +1106,7 @@ const modal = document.getElementById("modal-overlay");
 const calOverlay = document.getElementById("calendar-overlay");
 const deleteOverlay = document.getElementById("delete-confirm-overlay");
 const masteryOverlay = document.getElementById("mastery-overlay");
+const dailyReminderOverlay = document.getElementById("daily-reminder-overlay");
 const toast = document.getElementById("toast");
 const inputName = document.getElementById("new-streak-name");
 const iconContainer = document.getElementById("icon-selector");
@@ -1091,6 +1142,11 @@ const authMessage = document.getElementById("auth-message");
 const authSubmit = document.getElementById("auth-submit");
 const sessionUser = document.getElementById("session-user");
 const signOutBtn = document.getElementById("sign-out-btn");
+const reminderSettingsPanel = document.getElementById("reminder-settings");
+const enableReminderBtn = document.getElementById("enable-reminder-btn");
+const reminderTimeInput = document.getElementById("reminder-time-input");
+const notificationStatusValue = document.getElementById("notification-status-value");
+const dailyReminderOkBtn = document.getElementById("daily-reminder-ok");
 
 function showToast(messageKey, vars = {}) {
     setTranslatedMessage(toast, messageKey, vars);
@@ -1100,6 +1156,341 @@ function showToast(messageKey, vars = {}) {
     showToast.timeoutId = setTimeout(() => {
         toast.style.opacity = "0";
     }, 3000);
+}
+
+function isValidReminderTime(value) {
+    return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+function getBrowserNotificationPermission() {
+    if (!("Notification" in window)) return "unsupported";
+    return Notification.permission || "default";
+}
+
+function normalizeNotificationPermission(permission = getBrowserNotificationPermission()) {
+    return ["default", "granted", "denied", "unsupported"].includes(permission)
+        ? permission
+        : getBrowserNotificationPermission();
+}
+
+function normalizeReminderSettings(data = {}) {
+    return {
+        enabled: data.enabled === true || data.dailyReminderEnabled === true,
+        reminderTime: isValidReminderTime(data.reminderTime) ? data.reminderTime : DEFAULT_REMINDER_TIME,
+        notificationPermission: normalizeNotificationPermission(data.notificationPermission || data.permission)
+    };
+}
+
+function getReminderSettingsStorageKey(uid = currentUser?.uid) {
+    return uid ? `${REMINDER_SETTINGS_STORAGE_KEY}:${uid}` : REMINDER_SETTINGS_STORAGE_KEY;
+}
+
+function saveReminderSettingsLocally(settings = reminderSettings, uid = currentUser?.uid) {
+    try {
+        localStorage.setItem(getReminderSettingsStorageKey(uid), JSON.stringify(normalizeReminderSettings(settings)));
+    } catch (error) {
+        console.warn("Reminder settings could not be saved locally:", error);
+    }
+}
+
+function loadReminderSettingsFromLocal(uid = currentUser?.uid) {
+    try {
+        const raw = localStorage.getItem(getReminderSettingsStorageKey(uid));
+        reminderSettings = normalizeReminderSettings(raw ? JSON.parse(raw) : reminderSettings);
+    } catch (error) {
+        console.warn("Reminder settings could not be loaded locally:", error);
+        reminderSettings = normalizeReminderSettings();
+    }
+
+    reminderSettings.notificationPermission = getBrowserNotificationPermission();
+    updateReminderSettingsUi();
+    scheduleLocalDailyReminder();
+}
+
+function getReminderNotificationStatus() {
+    const permission = getBrowserNotificationPermission();
+
+    if (permission === "unsupported") return "unsupported";
+    if (permission === "denied") return "blocked";
+    if (permission === "granted" && reminderSettings.enabled) return "enabled";
+    return "disabled";
+}
+
+function getReminderStatusKey(status = getReminderNotificationStatus()) {
+    const statusKeys = {
+        enabled: "notificationStatusEnabled",
+        disabled: "notificationStatusDisabled",
+        blocked: "notificationStatusBlocked",
+        unsupported: "notificationStatusUnsupported"
+    };
+
+    return statusKeys[status] || statusKeys.disabled;
+}
+
+function updateReminderSettingsUi() {
+    if (!enableReminderBtn || !reminderTimeInput || !notificationStatusValue) return;
+
+    const status = getReminderNotificationStatus();
+    const isEnabled = status === "enabled";
+
+    reminderTimeInput.value = reminderSettings.reminderTime || DEFAULT_REMINDER_TIME;
+    reminderSettingsPanel?.setAttribute("data-notification-status", status);
+    enableReminderBtn.disabled = status === "unsupported";
+    enableReminderBtn.setAttribute("aria-pressed", String(isEnabled));
+    enableReminderBtn.textContent = t(isEnabled ? "disableDailyReminder" : "enableDailyReminder");
+    setTranslatedMessage(notificationStatusValue, getReminderStatusKey(status));
+}
+
+function getReminderSettingsPayload() {
+    return {
+        enabled: reminderSettings.enabled === true,
+        reminderTime: isValidReminderTime(reminderSettings.reminderTime)
+            ? reminderSettings.reminderTime
+            : DEFAULT_REMINDER_TIME,
+        notificationPermission: getBrowserNotificationPermission(),
+        language: currentLanguage,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+        updatedAt: Date.now()
+    };
+}
+
+async function saveReminderSettingsToFirebase(user = currentUser) {
+    if (!user) return;
+
+    await setDoc(getUserNotificationSettingsDocRef(user), getReminderSettingsPayload(), { merge: true });
+}
+
+async function persistReminderSettings(options = {}) {
+    reminderSettings.notificationPermission = getBrowserNotificationPermission();
+    saveReminderSettingsLocally();
+    updateReminderSettingsUi();
+    scheduleLocalDailyReminder();
+
+    if (!currentUser) return;
+
+    try {
+        await saveReminderSettingsToFirebase(currentUser);
+        if (options.successToast) showToast(options.successToast);
+    } catch (error) {
+        console.warn("Reminder settings sync failed:", error);
+        showToast("toastReminderSettingsFailed");
+    }
+}
+
+async function loadReminderSettingsFromFirebase(user = requireCurrentUser()) {
+    const settingsSnapshot = await getDoc(getUserNotificationSettingsDocRef(user));
+
+    if (currentUser?.uid !== user.uid) return;
+
+    if (settingsSnapshot.exists()) {
+        reminderSettings = normalizeReminderSettings(settingsSnapshot.data());
+        saveReminderSettingsLocally(reminderSettings, user.uid);
+    }
+
+    reminderSettings.notificationPermission = getBrowserNotificationPermission();
+    updateReminderSettingsUi();
+    scheduleLocalDailyReminder();
+}
+
+function loadReminderSettingsFromFirebaseWithTimeout(user = requireCurrentUser(), timeoutMs = 6000) {
+    return Promise.race([
+        loadReminderSettingsFromFirebase(user),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Reminder settings timeout")), timeoutMs))
+    ]);
+}
+
+function getNextReminderDelay(reminderTime = DEFAULT_REMINDER_TIME) {
+    const [hours, minutes] = isValidReminderTime(reminderTime)
+        ? reminderTime.split(":").map(Number)
+        : DEFAULT_REMINDER_TIME.split(":").map(Number);
+    const nextReminder = new Date();
+
+    nextReminder.setHours(hours, minutes, 0, 0);
+
+    if (nextReminder.getTime() <= Date.now()) {
+        nextReminder.setDate(nextReminder.getDate() + 1);
+    }
+
+    return nextReminder.getTime() - Date.now();
+}
+
+function clearLocalDailyReminder() {
+    if (!reminderTimeoutId) return;
+
+    window.clearTimeout(reminderTimeoutId);
+    reminderTimeoutId = null;
+}
+
+function showDailyReminderPopup() {
+    if (!dailyReminderOverlay || appShell.hidden) return;
+
+    dailyReminderOverlay.style.display = "flex";
+    window.setTimeout(() => dailyReminderOkBtn?.focus(), 0);
+}
+
+function closeDailyReminderPopup() {
+    if (!dailyReminderOverlay) return;
+
+    dailyReminderOverlay.style.display = "none";
+}
+
+function scheduleLocalDailyReminder() {
+    clearLocalDailyReminder();
+
+    if (getReminderNotificationStatus() !== "enabled") return;
+
+    /*
+     * Browser-only JavaScript cannot reliably schedule a daily notification when
+     * the PWA is fully closed. This timer only works while this app page is
+     * running. Production daily reminders need push delivery from Firebase Cloud
+     * Messaging or another backend scheduler.
+     */
+    reminderTimeoutId = window.setTimeout(async () => {
+        if (document.visibilityState === "visible" && !appShell.hidden) {
+            showDailyReminderPopup();
+        } else {
+            await showDailyReminderNotification();
+        }
+        scheduleLocalDailyReminder();
+    }, getNextReminderDelay(reminderSettings.reminderTime));
+}
+
+function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return Promise.resolve(null);
+
+    if (!serviceWorkerRegistrationPromise) {
+        serviceWorkerRegistrationPromise = navigator.serviceWorker.register("./service-worker.js")
+            .catch(error => {
+                console.warn("Service worker registration failed:", error);
+                return null;
+            });
+    }
+
+    return serviceWorkerRegistrationPromise;
+}
+
+async function getReadyServiceWorkerRegistration() {
+    const registration = await registerServiceWorker();
+
+    if (registration) return registration;
+    if (!("serviceWorker" in navigator)) return null;
+
+    try {
+        return await navigator.serviceWorker.ready;
+    } catch (error) {
+        console.warn("Service worker was not ready for notifications:", error);
+        return null;
+    }
+}
+
+function getNotificationClickUrl() {
+    return new URL("./", window.location.href).href;
+}
+
+async function showDailyReminderNotification() {
+    if (getBrowserNotificationPermission() !== "granted") return;
+
+    const title = t("notificationTitle");
+    const options = {
+        body: t("notificationBody"),
+        icon: NOTIFICATION_ICON_PATH,
+        badge: NOTIFICATION_BADGE_PATH,
+        tag: "habit-daily-reminder",
+        renotify: true,
+        requireInteraction: true,
+        data: {
+            url: getNotificationClickUrl(),
+            click_action: getNotificationClickUrl()
+        }
+    };
+
+    const registration = await getReadyServiceWorkerRegistration();
+
+    if (registration?.showNotification) {
+        await registration.showNotification(title, options);
+        return;
+    }
+
+    const notification = new Notification(title, options);
+    notification.onclick = () => {
+        window.focus();
+        notification.close();
+    };
+}
+
+async function handleEnableReminderClick() {
+    const status = getReminderNotificationStatus();
+
+    if (status === "enabled") {
+        reminderSettings = {
+            ...reminderSettings,
+            enabled: false,
+            notificationPermission: getBrowserNotificationPermission()
+        };
+        await persistReminderSettings({ successToast: "toastNotificationDisabled" });
+        return;
+    }
+
+    if (status === "unsupported") {
+        showToast("toastNotificationUnsupported");
+        updateReminderSettingsUi();
+        return;
+    }
+
+    if (getBrowserNotificationPermission() === "denied") {
+        reminderSettings = {
+            ...reminderSettings,
+            enabled: false,
+            notificationPermission: "denied"
+        };
+        await persistReminderSettings();
+        showToast("toastNotificationBlocked");
+        return;
+    }
+
+    let permission = getBrowserNotificationPermission();
+
+    if (permission !== "granted") {
+        permission = await Notification.requestPermission();
+    }
+
+    if (permission !== "granted") {
+        reminderSettings = {
+            ...reminderSettings,
+            enabled: false,
+            notificationPermission: normalizeNotificationPermission(permission)
+        };
+        await persistReminderSettings();
+        showToast(permission === "denied" ? "toastNotificationBlocked" : "toastNotificationDisabled");
+        return;
+    }
+
+    await registerServiceWorker();
+
+    reminderSettings = {
+        ...reminderSettings,
+        enabled: true,
+        reminderTime: isValidReminderTime(reminderTimeInput?.value)
+            ? reminderTimeInput.value
+            : DEFAULT_REMINDER_TIME,
+        notificationPermission: "granted"
+    };
+
+    await persistReminderSettings({ successToast: "toastNotificationEnabled" });
+}
+
+async function handleReminderTimeChange() {
+    const nextTime = isValidReminderTime(reminderTimeInput?.value)
+        ? reminderTimeInput.value
+        : DEFAULT_REMINDER_TIME;
+
+    reminderSettings = {
+        ...reminderSettings,
+        reminderTime: nextTime,
+        notificationPermission: getBrowserNotificationPermission()
+    };
+
+    await persistReminderSettings({ successToast: "toastReminderTimeSaved" });
 }
 
 function getAllColorOptions() {
@@ -1625,6 +2016,10 @@ function getUserHabitDocRef(streak, user = requireCurrentUser()) {
     return doc(db, "users", user.uid, "habits", habitId);
 }
 
+function getUserNotificationSettingsDocRef(user = requireCurrentUser()) {
+    return doc(db, "users", user.uid, "settings", NOTIFICATION_SETTINGS_DOC_ID);
+}
+
 function setLoadingVisible(isVisible) {
     loadingScreen.style.display = isVisible ? "flex" : "none";
 }
@@ -1634,6 +2029,7 @@ function closeAllOverlays() {
     calOverlay.style.display = "none";
     deleteOverlay.style.display = "none";
     masteryOverlay.style.display = "none";
+    closeDailyReminderPopup();
     hideColorPopover(colorPalette);
     hideColorPopover(editColorPalette);
 }
@@ -3882,6 +4278,9 @@ function bindEvents() {
     document.querySelectorAll("[data-password-toggle]").forEach(button => {
         button.addEventListener("click", () => togglePasswordVisibility(button.dataset.passwordToggle));
     });
+    enableReminderBtn?.addEventListener("click", handleEnableReminderClick);
+    reminderTimeInput?.addEventListener("change", handleReminderTimeChange);
+    dailyReminderOkBtn?.addEventListener("click", closeDailyReminderPopup);
 
     bindHabitCardActions(sContainer);
     bindHabitCardActions(masteredHabitsContainer);
@@ -4043,8 +4442,11 @@ function showSignedOutScreen() {
         window.clearTimeout(targetSyncTimeout);
         targetSyncTimeout = null;
     }
+    clearLocalDailyReminder();
 
     currentUser = null;
+    reminderSettings = normalizeReminderSettings();
+    updateReminderSettingsUi();
     closeAllOverlays();
     resetHabitState();
     setSyncStatus("");
@@ -4071,6 +4473,10 @@ async function showSignedInScreen(user) {
     authScreen.hidden = true;
     appShell.hidden = false;
     updateSessionUserCopy();
+    loadReminderSettingsFromLocal(user.uid);
+    loadReminderSettingsFromFirebaseWithTimeout(user).catch(error => {
+        console.warn("Reminder settings load failed or timed out:", error);
+    });
     setSyncStatus("loading");
     renderRecentColors();
     setLoadingVisible(true);
@@ -4124,9 +4530,7 @@ function init() {
 
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./service-worker.js").catch(error => {
-            console.warn("Service worker registration failed:", error);
-        });
+        registerServiceWorker();
     });
 }
 
